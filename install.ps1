@@ -209,12 +209,12 @@ function Start-Installation {
     Write-Host ""
     Write-Host "  ╔══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
     Write-Host "  ║                                                          ║" -ForegroundColor Cyan
-    Write-Host "  ║     ██╗      ██████╗  ██████╗ █████╗ ██╗     ██╗        ║" -ForegroundColor Cyan
-    Write-Host "  ║     ██║     ██╔═══██╗██╔════╝██╔══██╗██║     ██║        ║" -ForegroundColor Cyan
-    Write-Host "  ║     ██║     ██║   ██║██║     ███████║██║     ██║        ║" -ForegroundColor Cyan
-    Write-Host "  ║     ██║     ██║   ██║██║     ██╔══██║██║     ██║        ║" -ForegroundColor Cyan
-    Write-Host "  ║     ███████╗╚██████╔╝╚██████╗██║  ██║███████╗███████╗   ║" -ForegroundColor Cyan
-    Write-Host "  ║     ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝  ║" -ForegroundColor Cyan
+    Write-Host "  ║     ██╗      ██████╗  ██████╗ █████╗ ██╗            ║" -ForegroundColor Cyan
+    Write-Host "  ║     ██║     ██╔═══██╗██╔════╝██╔══██╗██║            ║" -ForegroundColor Cyan
+    Write-Host "  ║     ██║     ██║   ██║██║     ███████║██║            ║" -ForegroundColor Cyan
+    Write-Host "  ║     ██║     ██║   ██║██║     ██╔══██║██║            ║" -ForegroundColor Cyan
+    Write-Host "  ║     ███████╗╚██████╔╝╚██████╗██║  ██║███████╗      ║" -ForegroundColor Cyan
+    Write-Host "  ║     ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ║" -ForegroundColor Cyan
     Write-Host "  ║              ██╗     ██╗     ███╗   ███╗                 ║" -ForegroundColor Magenta
     Write-Host "  ║              ██║     ██║     ████╗ ████║                 ║" -ForegroundColor Magenta
     Write-Host "  ║              ██║     ██║     ██╔████╔██║                 ║" -ForegroundColor Magenta
