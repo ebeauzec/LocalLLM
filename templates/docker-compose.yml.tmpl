@@ -25,7 +25,7 @@ services:
     ports:
       - "{{OLLAMA_PORT}}:11434"
     volumes:
-      - "{{DATA_PATH}}/ollama:/root/.ollama"
+      - ollama-data:/root/.ollama
     environment:
 {{OLLAMA_ENV_VARS}}
 {{ACCELERATOR_BLOCK}}
@@ -136,8 +136,7 @@ services:
       - WEBUI_NAME=LocalLLM
 
     volumes:
-      - "{{DATA_PATH}}/open-webui:/app/backend/data"
-      - "{{DATA_PATH}}/uploads:/app/backend/data/uploads"
+      - webui-data:/app/backend/data
     depends_on:
       ollama:
         condition: service_healthy
@@ -257,3 +256,7 @@ volumes:
     name: localllm-litellm-config
   searxng-config:
     name: localllm-searxng-config
+  webui-data:
+    name: localllm-webui-data
+  ollama-data:
+    name: localllm-ollama-data
