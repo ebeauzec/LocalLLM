@@ -53,7 +53,7 @@ services:
       - LITELLM_CONFIG_B64={{LITELLM_CONFIG_B64}}
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "echo $LITELLM_CONFIG_B64 | base64 -d > /config/config.yaml && echo 'LiteLLM config written to volume'"
+      - "echo $$LITELLM_CONFIG_B64 | base64 -d > /config/config.yaml && echo 'LiteLLM config written to volume'"
     networks:
       - localllm-network
 
