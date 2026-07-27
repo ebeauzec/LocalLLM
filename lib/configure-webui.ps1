@@ -43,7 +43,8 @@ function Initialize-OpenWebUI {
     try {
         Write-LogMessage -Message "Starting Open WebUI initialization..." -Level "INFO"
         
-        $baseUrl = "http://localhost:$($Configuration.WebUIPort | Default 8080)"
+        $port = if ($Configuration.WebUIPort) { $Configuration.WebUIPort } else { 3100 }
+        $baseUrl = "http://localhost:${port}"
         $maxRetries = 30
         $retryCount = 0
         $isReady = $false
@@ -70,9 +71,12 @@ function Initialize-OpenWebUI {
         $token = ""
         $authUrl = "$baseUrl/api/v1/auths/signup"
         $loginUrl = "$baseUrl/api/v1/auths/signin"
-        $adminEmail = $Configuration.AdminEmail
-        $adminPassword = $Configuration.AdminPassword
-        $adminName = $Configuration.AdminName
+        $adminEmail = "admin@localllm.local"
+        $adminPassword = "localllm-admin"
+        $adminName = "Admin"
+        try { if ($Configuration.AdminEmail) { $adminEmail = $Configuration.AdminEmail } } catch {}
+        try { if ($Configuration.AdminPassword) { $adminPassword = $Configuration.AdminPassword } } catch {}
+        try { if ($Configuration.AdminName) { $adminName = $Configuration.AdminName } } catch {}
 
         try {
             $body = @{
