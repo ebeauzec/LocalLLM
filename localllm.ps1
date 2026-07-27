@@ -635,16 +635,26 @@ function Invoke-Doctor {
     $results = Invoke-HealthCheck
     Show-HealthReport -Results $results
 
-    $failures = ($results | Where-Object { $_.Status -eq 'Fail' })
-    if ($failures.Count -gt 0) {
+    # Count failures safely (results may be hashtables)
+    $failCount = 0
+    $failedItems = @()
+    foreach ($r in $results) {
+        if ($null -eq $r) { continue }
+        $rStatus = if ($r -is [hashtable]) { $r['Status'] } elseif ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
+        if ($rStatus -eq 'Fail') {
+            $failCount++
+            $rAutoFix = if ($r -is [hashtable]) { $r['AutoFixAvailable'] } elseif ($r.PSObject.Properties['AutoFixAvailable']) { $r.AutoFixAvailable } else { $false }
+            if ($rAutoFix) { $failedItems += $r }
+        }
+    }
+    if ($failCount -gt 0) {
         Write-Host ""
-        $autoFix = Read-Host "  Attempt automatic repair for $($failures.Count) issue(s)? [Y/n]"
+        $autoFix = Read-Host "  Attempt automatic repair for $failCount issue(s)? [Y/n]"
         if ($autoFix -ne 'n' -and $autoFix -ne 'N') {
-            foreach ($fail in $failures) {
-                if ($fail.AutoFixAvailable) {
-                    Write-Host "  🔧 Repairing: $($fail.Name)..." -ForegroundColor Yellow
-                    Repair-Service -CheckResult $fail
-                }
+            foreach ($fail in $failedItems) {
+                $failName = if ($fail -is [hashtable]) { $fail['Name'] } else { $fail.Name }
+                Write-Host "  🔧 Repairing: $failName..." -ForegroundColor Yellow
+                Repair-Service -FailedTest $fail
             }
             Write-Host ""
             Write-Host "  Re-running checks..." -ForegroundColor Gray

@@ -482,13 +482,25 @@ function Start-Installation {
             $healthResults = Invoke-HealthCheck
             Show-HealthReport -Results $healthResults
 
-            $failures = ($healthResults | Where-Object { $_.Status -eq 'Fail' }).Count
+            # Count failures safely (results may be hashtables or PSCustomObjects)
+            $failures = 0
+            $failedItems = @()
+            foreach ($hr in $healthResults) {
+                if ($null -eq $hr) { continue }
+                $hrStatus = if ($hr -is [hashtable]) { $hr['Status'] } elseif ($hr.PSObject.Properties['Status']) { $hr.Status } else { 'Unknown' }
+                if ($hrStatus -eq 'Fail') {
+                    $failures++
+                    $hrAutoFix = if ($hr -is [hashtable]) { $hr['AutoFixAvailable'] } elseif ($hr.PSObject.Properties['AutoFixAvailable']) { $hr.AutoFixAvailable } else { $false }
+                    if ($hrAutoFix) { $failedItems += $hr }
+                }
+            }
             if ($failures -gt 0) {
                 Write-Host ""
                 Write-Host "  ⚠️  $failures health check(s) failed. Attempting auto-repair..." -ForegroundColor Yellow
-                foreach ($fail in ($healthResults | Where-Object { $_.Status -eq 'Fail' -and $_.AutoFixAvailable })) {
-                    Write-Host "    Repairing: $($fail.Name)..." -ForegroundColor Yellow
-                    Repair-Service -CheckResult $fail
+                foreach ($fail in $failedItems) {
+                    $failName = if ($fail -is [hashtable]) { $fail['Name'] } else { $fail.Name }
+                    Write-Host "    Repairing: $failName..." -ForegroundColor Yellow
+                    Repair-Service -FailedTest $fail
                 }
                 Write-Host "  Re-running health checks..." -ForegroundColor Gray
                 $healthResults = Invoke-HealthCheck
