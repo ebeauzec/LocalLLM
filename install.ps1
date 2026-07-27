@@ -256,7 +256,7 @@ function Start-Installation {
 
             Write-Host "  Scanning hardware and detecting existing tools..." -ForegroundColor Gray
             $systemProfile = Get-SystemProfile
-            Show-SystemReport -SystemProfile $systemProfile
+            Show-SystemReport -Profile $systemProfile
 
             $state.SystemProfile = $systemProfile
             $state.LastStep = 1
@@ -283,9 +283,9 @@ function Start-Installation {
             Write-Host ""
 
             $recommended = Get-RecommendedModels -SystemProfile $state.SystemProfile
-            $selectedModels = Show-ModelSelection -RecommendedModels $recommended -SystemProfile $state.SystemProfile
+            Show-ModelSelection -SystemProfile $state.SystemProfile
 
-            $state.SelectedModels = $selectedModels
+            $state.SelectedModels = $recommended
             $state.LastStep = 2
             Save-InstallState -State $state
 
