@@ -499,7 +499,7 @@ function Wait-ForServices {
         $webuiPort = Get-ConfigValue $Config 'WebUIPort' 3000
         
         $ollamaUrl = "http://localhost:${ollamaPort}/"
-        $litellmUrl = "http://localhost:${litellmPort}/health"
+        $litellmUrl = "http://localhost:${litellmPort}/health/liveliness"
         $webuiUrl = "http://localhost:${webuiPort}/"
         
         $services = @{
