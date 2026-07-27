@@ -37,7 +37,7 @@ function Initialize-OpenWebUI {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
-        [hashtable]$Configuration
+        $Configuration
     )
 
     try {

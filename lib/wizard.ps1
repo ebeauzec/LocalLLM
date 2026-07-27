@@ -295,7 +295,7 @@ function Confirm-Configuration {
     .SYNOPSIS
         Displays a summary of all configuration choices and asks for confirmation.
     #>
-    param([hashtable]$Config)
+    param($Config)
 
     try {
         Write-Host ""

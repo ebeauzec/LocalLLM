@@ -36,7 +36,7 @@ function Install-CustomModels {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
-        [hashtable]$Configuration
+        $Configuration
     )
 
     try {

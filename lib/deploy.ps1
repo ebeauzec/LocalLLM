@@ -32,7 +32,7 @@ function New-DockerComposeFile {
     Generates docker-compose.yml from template.
     #>
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         $templatePath = Join-Path $script:ProjectRoot "templates\docker-compose.yml.tmpl"
@@ -157,7 +157,7 @@ function New-DockerComposeFile {
 
 function New-LiteLLMConfig {
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         $templatePath = Join-Path $script:ProjectRoot "templates\litellm_config.yaml.tmpl"
@@ -218,7 +218,7 @@ function New-LiteLLMConfig {
 
 function New-EnvironmentFile {
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         $templatePath = Join-Path $script:ProjectRoot "templates\.env.tmpl"
@@ -248,7 +248,7 @@ function New-EnvironmentFile {
 
 function New-SearXNGConfig {
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         $searxngConfigDir = Join-Path $script:ProjectRoot "config\searxng"
@@ -303,7 +303,7 @@ function Start-DockerCompose {
 
 function Install-OllamaModels {
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         Write-LogMessage "Pulling selected models..." -Level Step
@@ -336,7 +336,7 @@ function Install-OllamaModels {
 
 function Wait-ForServices {
     [CmdletBinding()]
-    param([hashtable]$Config, [int]$TimeoutSeconds = 120)
+    param($Config, [int]$TimeoutSeconds = 120)
     
     try {
         Write-LogMessage "Waiting for services to become ready (Timeout: ${TimeoutSeconds}s)..." -Level Step
@@ -382,7 +382,7 @@ function Wait-ForServices {
 
 function Start-Deployment {
     [CmdletBinding()]
-    param([hashtable]$Config)
+    param($Config)
     
     try {
         Write-LogMessage "Starting Deployment" -Level Step

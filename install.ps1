@@ -189,7 +189,7 @@ function Get-InstallState {
 }
 
 function Save-InstallState {
-    param([hashtable]$State)
+    param($State)
     $State | ConvertTo-Json -Depth 10 | Set-Content $script:STATE_FILE -Force
 }
 
