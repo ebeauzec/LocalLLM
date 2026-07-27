@@ -74,21 +74,58 @@ LocalLLM is a one-command installer that gives you a local AI assistant comparab
 
 ## 🚀 Quick Start
 
+### Windows (PowerShell)
 ```powershell
 git clone https://github.com/ebeauzec/LocalLLM.git
 cd LocalLLM
 .\install.ps1
 ```
 
+### macOS / Linux (Bash)
+```bash
+git clone https://github.com/ebeauzec/LocalLLM.git
+cd LocalLLM
+chmod +x install.sh
+./install.sh
+```
+
+### Unattended / Headless (No Interactive Prompts)
+```bash
+# Edit config, then install without prompts
+cp install-config.json my-config.json
+# Edit my-config.json with your preferences...
+./install.sh --unattended --config my-config.json    # Linux/macOS
+.\install.ps1 -Unattended -ConfigFile my-config.json  # Windows
+```
+
+### Daily Usage
+```bash
+./localllm.sh start     # Start + auto-open browser
+# ... use your AI assistant ...
+./localllm.sh stop      # Graceful shutdown, returns all resources
+./localllm.sh start     # Resume with full memory — picks up where you left off
+```
+
 ## 💻 System Requirements
 
 | Specification | Minimum | Recommended |
 | ------------- | ------- | ----------- |
-| **OS** | Windows 10/11 (64-bit) | Windows 10/11 (64-bit) |
+| **OS** | Windows 10+, macOS 12+, Ubuntu 20.04+ | Any modern 64-bit OS |
 | **RAM** | 8GB | 16GB+ |
 | **GPU** | Optional (CPU only works) | NVIDIA GPU (for best performance) |
 | **Disk** | 20GB free space | 50GB+ SSD |
 | **Internet** | Required for initial setup | Broadband |
+
+### Supported Platforms
+
+| Platform | Installer | Management CLI | Prerequisites |
+|:---|:---|:---|:---|
+| 🪟 **Windows 10/11** | `install.ps1` | `localllm.ps1` | WSL2, Docker Desktop |
+| 🍎 **macOS 12+** | `install.sh` | `localllm.sh` | Homebrew, Docker Desktop |
+| 🐧 **Ubuntu/Debian** | `install.sh` | `localllm.sh` | Docker CE |
+| 🐧 **Fedora/RHEL** | `install.sh` | `localllm.sh` | Docker CE |
+| 🐧 **Arch Linux** | `install.sh` | `localllm.sh` | Docker |
+
 
 ## 🏗️ Architecture
 

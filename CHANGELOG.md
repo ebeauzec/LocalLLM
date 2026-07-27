@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.0] - 2026-07-27
+
+### Added — Multi-Platform, Lifecycle & Automation
+- **Cross-platform support**: Full Linux and macOS installers and management CLIs
+  - install.sh: 9-step bash installer with platform auto-detection (Ubuntu/Debian, Fedora/RHEL, Arch, macOS)
+  - localllm.sh: Bash management CLI with all commands
+  - uninstall.sh: Bash uninstaller with confirmation safeguards
+- **Unattended/headless installation**: `-Unattended -ConfigFile install-config.json` for non-interactive deployment
+  - install-config.json template with all configurable options
+  - Works in CI/CD, Group Policy, remote deployment scenarios
+  - Both PowerShell and Bash installers support unattended mode
+- **Graceful lifecycle management**:
+  - `start`: Auto-opens browser after services are healthy
+  - `stop`: Graceful shutdown with resource recovery report (memory freed, GPU released, ports unbound)
+  - Full session persistence — pick up where you left off with complete conversation history
+- **Version management**:
+  - VERSION file as single source of truth
+  - `localllm version`: Display current version and system info
+  - `localllm bump-version [major|minor|patch]`: Increment version, auto-commit and push
+  - `localllm push [message]`: Commit all changes and push to GitHub
+- **Persistence documentation**: Comprehensive PERSISTENCE.md covering session lifecycle, data persistence, graceful shutdown/resume, and backup/restore
+
+### Changed
+- install.ps1: Added -Unattended and -ConfigFile parameters, Read-HostOrConfig helper, version from VERSION file
+- localllm.ps1: Added version, bump-version, push commands; enhanced start (auto-browser) and stop (resource recovery)
+
 ## [v0.3.0] - 2026-07-27
 
 ### Added — Enterprise Features

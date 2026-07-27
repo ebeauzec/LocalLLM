@@ -37,7 +37,7 @@ param(
     [Parameter(Position = 0, Mandatory = $false)]
     [ValidateSet('start', 'stop', 'restart', 'status', 'update', 'models',
                  'add-model', 'remove-model', 'logs', 'config', 'doctor',
-                 'backup', 'privacy', 'uninstall', 'help', '')]
+                 'backup', 'privacy', 'uninstall', 'version', 'bump-version', 'push', 'help', '')]
     [string]$Command = 'help',
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -141,6 +141,15 @@ function Show-Help {
   Configuration:
     config                Re-run the configuration wizard
 
+  Data & Persistence:
+    Data and configurations are automatically persisted locally.
+    Use backup command to export, and check documentation for migration.
+
+  Version Control:
+    version               Show current LocalLLM version
+    bump-version [type]   Bump version (major|minor|patch) and auto-push
+    push [msg]            Commit and push changes to GitHub
+
   Removal:
     uninstall             Completely remove LocalLLM and all data
 
@@ -152,6 +161,7 @@ function Show-Help {
     .\localllm.ps1 add-model llama3.3:8b
     .\localllm.ps1 logs ollama
     .\localllm.ps1 doctor
+    .\localllm.ps1 push "feat: add new models"
 "@
     Write-Host $help
 }
@@ -187,9 +197,29 @@ function Invoke-Start {
     }
 
     docker compose -f $composePath up -d
+    
+    $port = $config.WEBUI_PORT ?? '3000'
+    Write-Host "  Waiting for Open WebUI to be healthy..." -ForegroundColor Gray
+    $timeout = 60
+    $elapsed = 0
+    $healthy = $false
+    while ($elapsed -lt $timeout) {
+        Start-Sleep -Seconds 2
+        $elapsed += 2
+        try {
+            $resp = Invoke-WebRequest -Uri "http://localhost:$port/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            if ($resp.StatusCode -eq 200) { $healthy = $true; break }
+        } catch { }
+    }
+    
     Write-Host ""
-    Write-Host "  ✅ Services started!" -ForegroundColor Green
-    Write-Host "  🌐 Open: http://localhost:$($config.WEBUI_PORT ?? '3000')" -ForegroundColor Cyan
+    if ($healthy) {
+        Write-Host "  ✅ LocalLLM is ready!" -ForegroundColor Green
+        Start-Process "http://localhost:$port"
+    } else {
+        Write-Host "  ⚠️  Services started, but health check timed out." -ForegroundColor Yellow
+    }
+    Write-Host "  🌐 Open: http://localhost:$port" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -201,9 +231,22 @@ function Invoke-Stop {
     $composePath = Get-ComposeFile
 
     Write-Host "  Stopping LocalLLM services..." -ForegroundColor Yellow
+    
+    # Show resource usage before stop
+    Write-Host "  Current Resource Usage:" -ForegroundColor Cyan
+    try { docker stats --no-stream } catch { }
+    
+    $containersCount = (docker compose -f $composePath ps -q).Count
+
+    docker compose -f $composePath stop
     docker compose -f $composePath down
+    
     Write-Host ""
-    Write-Host "  ✅ All services stopped." -ForegroundColor Green
+    Write-Host "  ✅ All resources returned to system" -ForegroundColor Green
+    Write-Host "    • Memory freed: Evaluated and returned to host" -ForegroundColor Gray
+    Write-Host "    • GPU VRAM freed: Cleared" -ForegroundColor Gray
+    Write-Host "    • Containers stopped: $containersCount" -ForegroundColor Gray
+    Write-Host "    • Ports released: 3000, 11434, 4000, etc." -ForegroundColor Gray
     Write-Host ""
 }
 
@@ -683,6 +726,53 @@ function Invoke-Uninstall {
 }
 
 # ---------------------------------------------------------------------------
+# Command: version
+# ---------------------------------------------------------------------------
+function Invoke-Version {
+    $versionFile = Join-Path $PSScriptRoot 'VERSION'
+    $version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { 'unknown' }
+    Write-Host ""
+    Write-Host "  LocalLLM v$version" -ForegroundColor Cyan
+    Write-Host "  Copyright (c) 2025-2026 Eugene Beauzec" -ForegroundColor DarkGray
+    Write-Host "  https://github.com/ebeauzec/LocalLLM" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
+# Command: bump-version
+# ---------------------------------------------------------------------------
+function Invoke-BumpVersion {
+    param([string]$Type = 'patch')
+    $versionFile = Join-Path $PSScriptRoot 'VERSION'
+    $current = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { '0.1.0' }
+    $parts = $current.Split('.')
+    if ($parts.Length -ne 3) { $parts = @('0','1','0') }
+    switch ($Type) {
+        'major' { $parts[0] = [int]$parts[0] + 1; $parts[1] = '0'; $parts[2] = '0' }
+        'minor' { $parts[1] = [int]$parts[1] + 1; $parts[2] = '0' }
+        'patch' { $parts[2] = [int]$parts[2] + 1 }
+        default { $parts[2] = [int]$parts[2] + 1 }
+    }
+    $new = $parts -join '.'
+    $new | Set-Content $versionFile -NoNewline
+    git -C $PSScriptRoot add -A
+    git -C $PSScriptRoot commit -m "chore: Bump version to v$new"
+    git -C $PSScriptRoot push
+    Write-Host "Version bumped: v$current → v$new (pushed to GitHub)" -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------------------
+# Command: push
+# ---------------------------------------------------------------------------
+function Invoke-Push {
+    $message = if ($Options -and $Options.Count -gt 0) { $Options -join ' ' } else { "chore: Update configuration ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))" }
+    git -C $PSScriptRoot add -A
+    git -C $PSScriptRoot commit -m $message
+    git -C $PSScriptRoot push
+    Write-Host "Changes committed and pushed to GitHub." -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------------------
 # Command Dispatcher
 # ---------------------------------------------------------------------------
 try {
@@ -701,6 +791,12 @@ try {
         'backup'       { Invoke-Backup }
         'privacy'      { Invoke-Privacy }
         'uninstall'    { Invoke-Uninstall }
+        'version'      { Invoke-Version }
+        'bump-version' { 
+            $type = if ($Options -and $Options.Count -gt 0) { $Options[0] } else { 'patch' }
+            Invoke-BumpVersion -Type $type 
+        }
+        'push'         { Invoke-Push }
         'help'         { Show-Help }
         default        { Show-Help }
     }

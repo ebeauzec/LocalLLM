@@ -1,6 +1,7 @@
 # Data & Storage
 data/
 config/
+backups/
 
 # Logs
 logs/
@@ -20,7 +21,10 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+venv/
+.venv/
 
 # OS Files
 .DS_Store
 Thumbs.db
+desktop.ini

@@ -44,6 +44,8 @@
 param(
     [switch]$Force,
     [switch]$SkipBrowser,
+    [switch]$Unattended,
+    [string]$ConfigFile,
     [string]$InstallPath
 )
 
@@ -55,9 +57,46 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue' # Speed up web requests
 
 # ---------------------------------------------------------------------------
+# Unattended Mode Setup
+# ---------------------------------------------------------------------------
+if ($Unattended) {
+    $script:Unattended = $true
+    $configPath = if ($ConfigFile) { $ConfigFile } else { Join-Path $PSScriptRoot 'install-config.json' }
+    if (Test-Path $configPath) {
+        $script:UnattendedConfig = Get-Content $configPath -Raw | ConvertFrom-Json
+    } else {
+        $script:UnattendedConfig = @{}
+    }
+} else {
+    $script:Unattended = $false
+    $script:UnattendedConfig = $null
+}
+
+function Read-HostOrConfig {
+    param([string]$Prompt, [string]$Default, [string]$ConfigKey)
+    if ($script:Unattended -and $null -ne $script:UnattendedConfig) {
+        $value = $script:UnattendedConfig.$ConfigKey
+        if ($null -ne $value) { 
+            Write-Host "$Prompt $value (from config)" -ForegroundColor DarkGray
+            return $value 
+        }
+        Write-Host "$Prompt $Default (defaulted)" -ForegroundColor DarkGray
+        return $Default
+    }
+    $result = Read-Host $Prompt
+    if ([string]::IsNullOrWhiteSpace($result)) { return $Default }
+    return $result
+}
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-$script:LOCALLLM_VERSION = '0.1.0'
+$versionFile = Join-Path $PSScriptRoot 'VERSION'
+if (Test-Path $versionFile) {
+    $script:LOCALLLM_VERSION = (Get-Content $versionFile -Raw).Trim()
+} else {
+    $script:LOCALLLM_VERSION = '0.4.0'
+}
 $script:TOTAL_STEPS = 9
 $script:STATE_FILE = Join-Path $PSScriptRoot '.localllm-install-state.json'
 
@@ -77,6 +116,8 @@ if (-not $isAdmin) {
     $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
     if ($Force) { $arguments += "-Force" }
     if ($SkipBrowser) { $arguments += "-SkipBrowser" }
+    if ($Unattended) { $arguments += "-Unattended" }
+    if ($ConfigFile) { $arguments += "-ConfigFile `"$ConfigFile`"" }
     if ($InstallPath) { $arguments += "-InstallPath `"$InstallPath`"" }
 
     Start-Process powershell -ArgumentList ($arguments -join ' ') -Verb RunAs
@@ -185,7 +226,7 @@ function Start-Installation {
     if ($state.LastStep -gt 0 -and -not $Force) {
         Write-Host "  [INFO] Previous installation detected (completed step $($state.LastStep)/$script:TOTAL_STEPS)." -ForegroundColor Yellow
         Write-Host ""
-        $resume = Read-Host "  Resume from step $($state.LastStep + 1)? [Y/n]"
+        $resume = Read-HostOrConfig -Prompt "  Resume from step $($state.LastStep + 1)? [Y/n]" -Default 'Y' -ConfigKey 'ResumeStep'
         if ($resume -eq 'n' -or $resume -eq 'N') {
             $state.LastStep = 0
             Write-Host "  Starting fresh installation..." -ForegroundColor Cyan
@@ -292,7 +333,7 @@ function Start-Installation {
                 Write-Host ""
                 $state.LastStep = 4
                 Save-InstallState -State $state
-                Read-Host "  Press Enter to exit"
+                if (-not $script:Unattended) { Read-Host "  Press Enter to exit" }
                 exit 0
             }
 
@@ -481,7 +522,7 @@ function Start-Installation {
 
         # Open browser
         if (-not $SkipBrowser) {
-            $openBrowser = Read-Host "  Open LocalLLM in your browser now? [Y/n]"
+            $openBrowser = Read-HostOrConfig -Prompt "  Open LocalLLM in your browser now? [Y/n]" -Default 'Y' -ConfigKey 'OpenBrowser'
             if ($openBrowser -ne 'n' -and $openBrowser -ne 'N') {
                 Start-Process "http://localhost:$webUIPort"
             }

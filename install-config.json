@@ -1,0 +1,32 @@
+{
+  "_comment": "LocalLLM Unattended Installation Configuration",
+  "_comment2": "Copy this file, fill in your preferences, and run: ./install.sh --unattended --config install-config.json",
+  
+  "privacy_mode": "BALANCED",
+  "install_path": "",
+  "features": {
+    "rag": true,
+    "web_search": true,
+    "tool_calling": true,
+    "multi_user": false,
+    "auto_start": true
+  },
+  "cloud_keys": {
+    "openai": "",
+    "anthropic": "",
+    "google": ""
+  },
+  "ports": {
+    "webui": 3000,
+    "ollama": 11434,
+    "litellm": 4000,
+    "searxng": 8888,
+    "pipelines": 9099
+  },
+  "models": {
+    "auto_select": true,
+    "additional": []
+  },
+  "auto_open_browser": true,
+  "accept_license": false
+}
