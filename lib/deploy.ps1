@@ -66,6 +66,10 @@ function New-DockerComposeFile {
         $content = $content -replace '\{\{DATA_PATH\}\}', './data'
         $content = $content -replace '\{\{CONFIG_PATH\}\}', './config'
         
+        # LiteLLM config as base64 for init container (bind mounts fail on virtual FS)
+        $litellmB64 = Get-ConfigValue $Config 'LiteLLMConfigB64' ''
+        $content = $content -replace '\{\{LITELLM_CONFIG_B64\}\}', $litellmB64
+        
         # Accelerator Config Section
         $accelConfig = Get-ConfigValue $Config 'AcceleratorConfig' $null
         if (-not $accelConfig) {
@@ -278,6 +282,11 @@ function New-LiteLLMConfig {
         if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
         
         $content | Out-File -FilePath $outPath -Encoding UTF8
+        
+        # Store for compose template injection (base64 to avoid YAML escaping issues)
+        $contentBytes = [System.Text.Encoding]::UTF8.GetBytes($content)
+        $Config | Add-Member -NotePropertyName 'LiteLLMConfigB64' -NotePropertyValue ([Convert]::ToBase64String($contentBytes)) -Force
+        
         Write-LogMessage "Generated litellm_config.yaml" -Level Success
     } catch {
         Write-LogMessage "Error creating LiteLLM config: $_" -Level Error
@@ -554,8 +563,8 @@ function Start-Deployment {
             }
         }
         
-        New-DockerComposeFile -Config $Config
         New-LiteLLMConfig -Config $Config
+        New-DockerComposeFile -Config $Config
         New-EnvironmentFile -Config $Config
         New-TikaConfig
         

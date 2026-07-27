@@ -40,6 +40,24 @@ services:
       - localllm-network
 
   # ──────────────────────────────────────────────────────────────────────────
+  # LITELLM-INIT — Config loader (runs once, then exits)
+  # Copies config into a Docker volume because Google Drive virtual FS
+  # paths don't work as bind mounts on Windows (files appear as dirs).
+  # ──────────────────────────────────────────────────────────────────────────
+  litellm-init:
+    image: alpine:latest
+    container_name: localllm-litellm-init
+    volumes:
+      - litellm-config:/config
+    environment:
+      - LITELLM_CONFIG_B64={{LITELLM_CONFIG_B64}}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "echo $LITELLM_CONFIG_B64 | base64 -d > /config/config.yaml && echo 'LiteLLM config written to volume'"
+    networks:
+      - localllm-network
+
+  # ──────────────────────────────────────────────────────────────────────────
   # LITELLM — API Gateway & Router
   # Routes requests to local models first (free), cloud APIs as fallback.
   # Provides a unified OpenAI-compatible endpoint for all consumers.
@@ -50,14 +68,16 @@ services:
     ports:
       - "{{LITELLM_PORT}}:4000"
     volumes:
-      - "{{CONFIG_PATH}}/litellm_config.yaml:/app/config.yaml"
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
+      - litellm-config:/app/litellm-config
+    command: ["--config", "/app/litellm-config/config.yaml", "--port", "4000"]
     environment:
       - LITELLM_MASTER_KEY={{LITELLM_KEY}}
       {{CLOUD_KEYS_ENV}}
     depends_on:
       ollama:
         condition: service_healthy
+      litellm-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4000/health || exit 1"]
@@ -211,3 +231,12 @@ networks:
   localllm-network:
     name: localllm-network
     driver: bridge
+
+# ──────────────────────────────────────────────────────────────────────────
+# VOLUMES
+# Named volumes for config data that can't be bind-mounted from
+# virtual filesystems (Google Drive, OneDrive, etc.)
+# ──────────────────────────────────────────────────────────────────────────
+volumes:
+  litellm-config:
+    name: localllm-litellm-config
