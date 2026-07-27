@@ -177,7 +177,7 @@ function Install-Prerequisites {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [hashtable]$SystemProfile
+        $SystemProfile
     )
     
     $result = @{

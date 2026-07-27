@@ -377,7 +377,7 @@ function Start-ConfigurationWizard {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [hashtable]$SystemProfile
+        $SystemProfile
     )
 
     try {
