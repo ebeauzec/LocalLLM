@@ -5,7 +5,44 @@ LocalLLM Dashboard Portal - API Wrapper
 
 window.apiLoaded = true;
 
-const OLLAMA_URL = '/ollama/api'; // Assuming reverse proxy is set up
+const OLLAMA_URL = '/ollama/api';
+const WEBUI_API = '/api/v1';
+const ADMIN_EMAIL = 'admin@localllm.local';
+const ADMIN_PASSWORD = 'localllm-admin';
+
+// Auto-authenticate with Open WebUI so /chat never shows a login screen
+async function autoLogin() {
+    // Check if we already have a valid token
+    const existing = localStorage.getItem('token');
+    if (existing) {
+        try {
+            const resp = await fetch(`${WEBUI_API}/auths/`, {
+                headers: { 'Authorization': `Bearer ${existing}` }
+            });
+            if (resp.ok) return existing;
+        } catch (e) { /* token expired, re-login */ }
+    }
+
+    try {
+        const resp = await fetch(`${WEBUI_API}/auths/signin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            localStorage.setItem('token', data.token);
+            console.log('[LocalLLM] Auto-login successful');
+            return data.token;
+        }
+    } catch (e) {
+        console.warn('[LocalLLM] Auto-login failed:', e);
+    }
+    return null;
+}
+
+// Run auto-login immediately on load
+autoLogin();
 
 async function fetchWithTimeout(resource, options = {}) {
     const { timeout = 5000 } = options;
