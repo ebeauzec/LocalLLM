@@ -164,15 +164,13 @@ services:
     container_name: localllm-tika
     ports:
       - "{{TIKA_PORT}}:9998"
-    volumes:
-      - "{{CONFIG_PATH}}/tika-config.xml:/tika-config.xml"
-    command: ["--config", "/tika-config.xml"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9998/tika || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - localllm-network
   {{TIKA_SECTION_END}}
@@ -189,7 +187,8 @@ services:
     ports:
       - "{{SEARXNG_PORT}}:8080"
     volumes:
-      - "{{CONFIG_PATH}}/searxng:/etc/searxng"
+      - "{{CONFIG_PATH}}/searxng/settings.yml:/etc/searxng/settings.yml:ro"
+      - "{{CONFIG_PATH}}/searxng/limiter.toml:/etc/searxng/limiter.toml:ro"
     environment:
       - SEARXNG_BASE_URL=http://localhost:{{SEARXNG_PORT}}/
     restart: unless-stopped

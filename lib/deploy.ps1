@@ -401,9 +401,10 @@ function Start-DockerCompose {
     
     # Step 1: Pull images (retries for network failures)
     Write-LogMessage "Pulling Docker images..." -Level Step
+    Push-Location $script:ProjectRoot
     for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" pull" -Wait -NoNewWindow -PassThru
-        if ($process.ExitCode -eq 0) {
+        & docker compose -f "$composePath" --project-directory "$($script:ProjectRoot)" pull 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -eq 0) {
             Write-LogMessage "All images pulled successfully." -Level Success
             break
         }
@@ -415,19 +416,21 @@ function Start-DockerCompose {
             Write-LogMessage "Image pull failed after $maxRetries attempts. Continuing with available images..." -Level Warning
         }
     }
+    Pop-Location
     
     # Step 2: Start services (--force-recreate ensures fresh bind mounts)
     try {
         Write-LogMessage "Starting Docker Compose services..." -Level Step
         Push-Location $script:ProjectRoot
-        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" up -d --force-recreate" -Wait -NoNewWindow -PassThru
+        & docker compose -f "$composePath" --project-directory "$($script:ProjectRoot)" up -d --force-recreate 2>&1 | ForEach-Object { Write-Host $_ }
         Pop-Location
         
-        if ($process.ExitCode -ne 0) {
-            throw "Docker compose failed with exit code $($process.ExitCode)"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Docker compose failed with exit code $LASTEXITCODE"
         }
         Write-LogMessage "Docker Compose started successfully." -Level Success
     } catch {
+        Pop-Location -ErrorAction SilentlyContinue
         Write-LogMessage "Failed to start docker compose: $_" -Level Error
         throw
     }
@@ -534,7 +537,9 @@ function Start-Deployment {
         $composePath = Join-Path $configDir "docker-compose.yml"
         if (Test-Path $composePath) {
             Write-LogMessage "Stopping existing containers..." -Level Info
-            $proc = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" down" -Wait -NoNewWindow -PassThru 2>$null
+            Push-Location $script:ProjectRoot
+            & docker compose -f "$composePath" --project-directory "$($script:ProjectRoot)" down 2>&1 | Out-Null
+            Pop-Location
         }
         
         # Clean up stale Docker-created directories (Docker mounts missing files as dirs)
