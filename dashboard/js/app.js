@@ -56,22 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Card Click -> Ensure auth then navigate to Open WebUI chat
+    // Card Click -> Route through /auth for seamless auto-login
     cards.forEach(card => {
-        card.addEventListener('click', async () => {
-            // Ensure we're authenticated before navigating
-            if (typeof autoLogin === 'function') {
-                await autoLogin();
-            }
-            window.location.href = '/chat';
+        card.addEventListener('click', () => {
+            window.location.href = '/auth';
         });
     });
 
-    // Helper: navigate to chat with auth
-    async function goToChat() {
-        if (typeof autoLogin === 'function') await autoLogin();
-        window.location.href = '/chat';
-    }
+    // Helper: navigate via auto-login
+    function goToChat() { window.location.href = '/auth'; }
 
     // New Chat & Upload Doc buttons
     document.getElementById('btnNewChat').addEventListener('click', goToChat);
