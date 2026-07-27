@@ -252,6 +252,15 @@ function New-LiteLLMConfig {
         $fallback = ""
         $content = $content -replace '\{\{FALLBACK_RULES_SECTION\}\}', $fallback
         
+        # Replace LiteLLM key
+        $liteLLMKey = Get-ConfigValue $Config 'LiteLLMKey' $null
+        if (-not $liteLLMKey) { $liteLLMKey = New-LiteLLMKey; $Config.LiteLLMKey = $liteLLMKey }
+        $content = $content -replace '\{\{LITELLM_KEY\}\}', $liteLLMKey
+        
+        # Ensure config dir exists
+        $configDir = Split-Path $outPath
+        if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
+        
         $content | Out-File -FilePath $outPath -Encoding UTF8
         Write-LogMessage "Generated litellm_config.yaml" -Level Success
     } catch {
@@ -277,7 +286,10 @@ function New-EnvironmentFile {
         $liteLLMKey = New-LiteLLMKey
         $Config.LiteLLMKey = $liteLLMKey
         
-        $multiUser = if ($Config.Features.MultiUser) { "True" } else { "False" }
+        $hasMultiUser = $false
+        $features = Get-ConfigValue $Config 'Features' $null
+        try { $hasMultiUser = $features.MultiUser } catch {}
+        $multiUser = if ($hasMultiUser) { "True" } else { "False" }
         
         $content = $content -replace '\{\{LITELLM_KEY\}\}', $liteLLMKey
         $content = $content -replace '\{\{MULTI_USER\}\}', $multiUser
@@ -463,11 +475,26 @@ function Start-Deployment {
             New-Item -ItemType Directory -Path $configDir | Out-Null
         }
         
+        # Clean up stale Docker-created directories (Docker mounts missing files as dirs)
+        $staleTargets = @(
+            (Join-Path $configDir 'litellm_config.yaml'),
+            (Join-Path $configDir 'tika-config.xml')
+        )
+        foreach ($target in $staleTargets) {
+            if ((Test-Path $target) -and (Get-Item $target).PSIsContainer) {
+                Remove-Item $target -Recurse -Force
+                Write-LogMessage "Removed stale directory at $target (Docker artifact)" -Level Warning
+            }
+        }
+        
         New-DockerComposeFile -Config $Config
         New-LiteLLMConfig -Config $Config
         New-EnvironmentFile -Config $Config
         
-        if ($Config.Features.WebSearch) {
+        $features = Get-ConfigValue $Config 'Features' $null
+        $hasWebSearch = $false
+        try { $hasWebSearch = $features.WebSearch } catch {}
+        if ($hasWebSearch) {
             New-SearXNGConfig -Config $Config
         }
         
