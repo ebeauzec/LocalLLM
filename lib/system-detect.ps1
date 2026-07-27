@@ -358,14 +358,24 @@ function Get-ExistingTools {
 function Get-HardwareTier {
     <#
     .SYNOPSIS
-        Classifies system into LOW/MEDIUM/HIGH/ULTRA.
+        Classifies system into LOW/MEDIUM/HIGH/ULTRA/TITAN.
+    .DESCRIPTION
+        TITAN tier enables 70B+ models on workstations with 64GB+ RAM.
+        For integrated GPUs (AMD APU, Intel iGPU), uses RAM as proxy
+        for effective VRAM since they share system memory.
     #>
-    param ($RAM_GB, $VRAM_GB)
-    
-    if ($RAM_GB -gt 32 -and $VRAM_GB -gt 16) { return "ULTRA" }
-    if ($RAM_GB -ge 17 -or $VRAM_GB -ge 9) { return "HIGH" }
-    if ($RAM_GB -ge 9 -or $VRAM_GB -ge 5) { return "MEDIUM" }
-    return "LOW"
+    param ($RAM_GB, $VRAM_GB, [switch]$IntegratedGPU)
+
+    # Integrated GPUs share system RAM — use a portion as effective VRAM
+    if ($IntegratedGPU -and $VRAM_GB -lt 4) {
+        $VRAM_GB = [math]::Floor($RAM_GB * 0.5)  # Can typically allocate ~50% to GPU
+    }
+
+    if ($RAM_GB -ge 64)  { return "TITAN" }   # 70B models, multi-model concurrency
+    if ($RAM_GB -ge 32)  { return "ULTRA" }   # 32B models
+    if ($RAM_GB -ge 16)  { return "HIGH" }    # 14B models
+    if ($RAM_GB -ge 8)   { return "MEDIUM" }  # 8B models
+    return "LOW"                               # 3B models
 }
 
 function Get-SystemProfile {
@@ -386,8 +396,8 @@ function Get-SystemProfile {
         $maxVram = $gpuInfo.PrimaryGPU.VRAM_GB
     }
     
-    $tier = Get-HardwareTier -RAM_GB $mem.TotalGB -VRAM_GB $maxVram
-    $recommendGPU = ($maxVram -gt 4)
+    $tier = Get-HardwareTier -RAM_GB $mem.TotalGB -VRAM_GB $maxVram -IntegratedGPU:($maxVram -lt 4 -and ($gpuInfo.HasAMDGPU -or $gpuInfo.HasIntelGPU))
+    $recommendGPU = ($gpuInfo.HasNvidiaGPU -or $gpuInfo.HasAMDGPU)
 
     # We need a partial profile for Get-AcceleratorConfig
     $tempProfile = @{ TotalRAMGB = $mem.TotalGB; Memory = $mem }
@@ -417,40 +427,87 @@ function Get-SystemProfile {
 function Show-SystemReport {
     <#
     .SYNOPSIS
-        Pretty-prints the system profile.
+        Pretty-prints the system profile with accelerator configuration.
+    .NOTES
+        Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
     #>
     param ($Profile)
     
     Write-Section -Title "System Report"
-    Write-Host "OS: $($Profile.OS.Name) ($($Profile.OS.Architecture))"
-    Write-Host "CPU: $($Profile.CPU.Name) ($($Profile.CPUCores) cores, $($Profile.CPUThreads) threads)"
-    Write-Host "RAM: $($Profile.Memory.TotalGB) GB"
+    
+    Write-Host "  System" -ForegroundColor White
+    Write-Host "    OS:    $($Profile.OS.Name) ($($Profile.OS.Architecture))" -ForegroundColor Gray
+    Write-Host "    CPU:   $($Profile.CPU.Name)" -ForegroundColor Gray
+    Write-Host "    Cores: $($Profile.CPUCores) cores / $($Profile.CPUThreads) threads" -ForegroundColor Gray
+    Write-Host "    RAM:   $($Profile.Memory.TotalGB) GB" -ForegroundColor Gray
+    Write-Host "    Disk:  $($Profile.Disk.FreeGB) GB free on $($Profile.Disk.Drive)" -ForegroundColor Gray
+    Write-Host ""
+    
+    Write-Host "  GPU" -ForegroundColor White
     if ($Profile.GPUs.Count -gt 0) {
         foreach ($g in $Profile.GPUs) {
-            Write-Host "GPU: $($g.Name) ($($g.VRAM_GB) GB VRAM)"
+            $vramStr = if ($g.VRAM_GB -gt 0) { "$($g.VRAM_GB) GB VRAM" } else { "Shared Memory" }
+            Write-Host "    $($g.Name) ($vramStr)" -ForegroundColor Green
         }
     } else {
-        Write-Host "GPU: None detected"
+        Write-Host "    None detected (CPU-only mode)" -ForegroundColor Yellow
     }
+    
     if ($Profile.HasNPU) {
-        Write-Host "NPU: $($Profile.NPUName)" -ForegroundColor Cyan
-    } else {
-        Write-Host "NPU: None detected"
+        Write-Host "  NPU" -ForegroundColor White
+        Write-Host "    $($Profile.NPUName) (detected, Ollama support pending)" -ForegroundColor Cyan
     }
-    Write-Host "Disk: $($Profile.Disk.FreeGB) GB free on $($Profile.Disk.Drive)"
-    Write-Host "Hardware Tier: $($Profile.HardwareTier)" -ForegroundColor Magenta
+    Write-Host ""
     
-    Write-Host "`nAccelerator Config:" -ForegroundColor Yellow
-    Write-Host " Mode: $($Profile.AcceleratorConfig.DockerGPUMode)"
-    Write-Host " Optimization: $($Profile.AcceleratorConfig.OllamaEnvVars['OLLAMA_NUM_THREADS']) threads, Parallel: $($Profile.AcceleratorConfig.OllamaEnvVars['OLLAMA_NUM_PARALLEL'])"
+    # Hardware Tier Badge
+    $tierColor = switch ($Profile.HardwareTier) {
+        'LOW'    { 'Yellow' }
+        'MEDIUM' { 'White' }
+        'HIGH'   { 'Cyan' }
+        'ULTRA'  { 'Magenta' }
+        'TITAN'  { 'Green' }
+        default  { 'White' }
+    }
+    $tierDesc = switch ($Profile.HardwareTier) {
+        'LOW'    { '3B models, basic tasks' }
+        'MEDIUM' { '8B models, general + code + reasoning' }
+        'HIGH'   { '14B models, professional workloads' }
+        'ULTRA'  { '32B models, advanced reasoning + coding' }
+        'TITAN'  { '70B models, near GPT-4 quality locally' }
+        default  { 'Unknown' }
+    }
+    Write-Host "  Hardware Tier: $($Profile.HardwareTier)" -ForegroundColor $tierColor
+    Write-Host "    $tierDesc" -ForegroundColor Gray
+    Write-Host ""
     
-    Write-Host "`nExisting Tools:"
+    # Accelerator Configuration
+    $accel = $Profile.AcceleratorConfig
+    Write-Host "  Acceleration" -ForegroundColor White
+    $modeLabel = switch ($accel.DockerGPUMode) {
+        'nvidia'   { 'NVIDIA CUDA' }
+        'amd-rocm' { 'AMD ROCm' }
+        'intel'    { 'Intel GPU' }
+        'none'     { 'CPU Only' }
+        default    { $accel.DockerGPUMode }
+    }
+    Write-Host "    GPU Mode:       $modeLabel" -ForegroundColor $(if ($accel.DockerGPUMode -ne 'none') { 'Green' } else { 'Yellow' })
+    Write-Host "    Docker Image:   $($accel.OllamaImage)" -ForegroundColor Gray
+    Write-Host "    CPU Threads:    $($accel.OllamaEnvVars['OLLAMA_NUM_THREADS']) (of $($Profile.CPUThreads) available)" -ForegroundColor Gray
+    Write-Host "    Parallel Reqs:  $($accel.OllamaEnvVars['OLLAMA_NUM_PARALLEL']) concurrent" -ForegroundColor Gray
+    Write-Host "    Max Models:     $($accel.OllamaEnvVars['OLLAMA_MAX_LOADED_MODELS']) loaded simultaneously" -ForegroundColor Gray
+    Write-Host "    FlashAttention: Enabled" -ForegroundColor Gray
+    Write-Host "    KV Cache:       $($accel.OllamaEnvVars['OLLAMA_KV_CACHE_TYPE'] ?? 'f16')" -ForegroundColor Gray
+    Write-Host "    Keep Alive:     $($accel.OllamaEnvVars['OLLAMA_KEEP_ALIVE'])" -ForegroundColor Gray
+    Write-Host ""
+    
+    # Existing Tools
+    Write-Host "  Existing Tools" -ForegroundColor White
     foreach ($tool in $Profile.ExistingTools.Keys) {
         $info = $Profile.ExistingTools[$tool]
         if ($info.Installed) {
-            Write-Host " [X] $tool (Installed: $($info.Version))" -ForegroundColor Green
+            Write-Host "    ✅ $tool $($info.Version)" -ForegroundColor Green
         } else {
-            Write-Host " [ ] $tool (Not Installed)" -ForegroundColor Gray
+            Write-Host "    ⬜ $tool" -ForegroundColor DarkGray
         }
     }
     Write-Host ""
