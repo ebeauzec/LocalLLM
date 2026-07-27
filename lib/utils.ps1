@@ -9,7 +9,41 @@
 #>
 #Requires -Version 5.1
 
-$global:LogFilePath = "$((Get-LocalLLMPath).TrimEnd('\'))\logs\localllm.log"
+# ── Path functions (must be defined before use) ──
+function Get-LocalLLMPath {
+    <#
+    .SYNOPSIS
+        Gets the installation root path.
+    #>
+    [CmdletBinding()]
+    param ()
+    return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
+
+function Get-ConfigPath {
+    <#
+    .SYNOPSIS
+        Gets the config directory path.
+    #>
+    [CmdletBinding()]
+    param ()
+    return Join-Path (Get-LocalLLMPath) "config"
+}
+
+function Get-DataPath {
+    <#
+    .SYNOPSIS
+        Gets the data directory path.
+    #>
+    [CmdletBinding()]
+    param ()
+    return Join-Path (Get-LocalLLMPath) "data"
+}
+
+# ── Log file setup ──
+$logDir = Join-Path (Get-LocalLLMPath) "logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+$global:LogFilePath = Join-Path $logDir "localllm.log"
 
 function Write-LogMessage {
     <#
@@ -131,36 +165,6 @@ function Request-Administrator {
     }
 }
 
-function Get-LocalLLMPath {
-    <#
-    .SYNOPSIS
-        Gets the installation root path.
-    #>
-    [CmdletBinding()]
-    param ()
-    # Assuming we are in <Root>\lib\utils.ps1
-    return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-}
-
-function Get-ConfigPath {
-    <#
-    .SYNOPSIS
-        Gets the config directory path.
-    #>
-    [CmdletBinding()]
-    param ()
-    return Join-Path (Get-LocalLLMPath) "config"
-}
-
-function Get-DataPath {
-    <#
-    .SYNOPSIS
-        Gets the data directory path.
-    #>
-    [CmdletBinding()]
-    param ()
-    return Join-Path (Get-LocalLLMPath) "data"
-}
 
 function ConvertTo-HumanReadableSize {
     <#
