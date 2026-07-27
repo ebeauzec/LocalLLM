@@ -106,7 +106,7 @@ function Install-CustomModels {
                     # Using PowerShell pipelining to docker exec might be tricky,
                     # writing a sh script in the container or passing via stdin
                     $dockerCmd = "docker exec -i ollama bash -c 'cat > /tmp/modelfile && ollama create $modelName -f /tmp/modelfile'"
-                    $content | docker exec -i ollama sh -c "cat > /tmp/modelfile && ollama create $modelName -f /tmp/modelfile"
+                    $content | docker exec -i localllm-ollama sh -c "cat > /tmp/modelfile && ollama create $modelName -f /tmp/modelfile"
                     
                     Write-LogMessage -Message "Successfully created $modelName" -Level "INFO"
                 } catch {
