@@ -125,12 +125,28 @@ function New-DockerComposeFile {
 "@
             } elseif ($hasAMD) {
                 $gpuName = ($hasAMD | Select-Object -First 1).Name
-                Write-LogMessage -Message "AMD GPU detected ($gpuName) — enabling ROCm acceleration" -Level "INFO"
-                $accelConfig.OllamaImage = 'ollama/ollama:rocm'
-                $accelConfig.DockerDevices = @('/dev/kfd', '/dev/dri')
-                # Set HSA_OVERRIDE_GFX_VERSION for RDNA3/3.5 (Radeon 7000/8000 series)
-                if ($gpuName -match '8\d{3}|7[6-9]\d{2}') {
-                    $accelConfig.OllamaEnvVars['HSA_OVERRIDE_GFX_VERSION'] = '11.0.0'
+                # Check if ROCm devices are available (Linux host or WSL2 with ROCm kernel)
+                $rocmAvailable = $false
+                try {
+                    $devCheck = docker run --rm alpine ls /dev/kfd 2>&1
+                    if ($LASTEXITCODE -eq 0) { $rocmAvailable = $true }
+                } catch {}
+                
+                if ($rocmAvailable) {
+                    Write-LogMessage -Message "AMD GPU ($gpuName) + ROCm available — enabling GPU acceleration" -Level "INFO"
+                    $accelConfig.OllamaImage = 'ollama/ollama:rocm'
+                    $accelConfig.DockerDevices = @('/dev/kfd', '/dev/dri')
+                    if ($gpuName -match '8\d{3}|7[6-9]\d{2}') {
+                        $accelConfig.OllamaEnvVars['HSA_OVERRIDE_GFX_VERSION'] = '11.0.0'
+                    }
+                } else {
+                    # Docker Desktop on Windows — ROCm not available in WSL2 VM
+                    # Maximize CPU performance instead; Ollama can still use Vulkan if available
+                    Write-LogMessage -Message "AMD GPU ($gpuName) detected but ROCm not available in Docker (Docker Desktop/WSL2 limitation)" -Level "WARNING"
+                    Write-LogMessage -Message "Maximizing CPU performance: $cpuCores cores, flash attention, KV cache optimization" -Level "INFO"
+                    Write-LogMessage -Message "TIP: For AMD GPU acceleration, install Ollama natively on Windows (https://ollama.com/download)" -Level "INFO"
+                    # Use all available CPU threads (not just physical cores) for maximum throughput
+                    $accelConfig.OllamaEnvVars['OLLAMA_NUM_THREADS'] = $cpuThreads
                 }
             }
             
