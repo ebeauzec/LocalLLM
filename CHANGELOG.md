@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.1] - 2026-07-27
+
+### Added — Adaptive Hardware Optimization
+- **TITAN tier** (64GB+ RAM): Flagship 70B models — near GPT-4 quality running 100% locally
+- **Smart model selection**: Automatically picks the BEST model per category (General, Code, Reasoning, Vision, Embedding) for the detected hardware
+- **Integrated GPU handling**: AMD APUs and Intel iGPUs with shared memory are now properly classified using RAM-based effective VRAM estimation
+- **Vision models**: LLaVA 7B/13B auto-included based on tier (MEDIUM+/HIGH+)
+- **Embedding model**: `nomic-embed-text` always included for local RAG/search
+- **Disk space safety**: Automatically drops largest models if insufficient disk space
+- **Enhanced system report**: Tier badges, accelerator config display, tool capability descriptions
+
+### Changed
+- Hardware tier thresholds simplified: LOW (<8GB), MEDIUM (8-16GB), HIGH (16-32GB), ULTRA (32-64GB), TITAN (64GB+)
+- Model catalog expanded from 10 to 17 models across 5 categories and 5 tiers
+- System report now shows full Ollama tuning parameters (threads, parallelism, KV cache, FlashAttention, keep-alive)
+
 ## [v0.6.0] - 2026-07-27
 
 ### Added — GPU/NPU Detection & Hardware Acceleration
