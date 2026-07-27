@@ -112,7 +112,7 @@ header {
 .btn-small { padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; }
 
 /* Main Layout */
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem; flex: 1; width: 100%; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; padding-bottom: 4rem; flex: 1; width: 100%; }
 
 /* Hero Section */
 .hero { text-align: center; margin-bottom: 3rem; }
@@ -228,9 +228,10 @@ header {
 
 /* Footer */
 footer {
-    padding: 1.5rem 2rem; border-top: 1px solid var(--card-border);
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    padding: 0.75rem 2rem; border-top: 1px solid var(--card-border);
     display: flex; justify-content: space-between; align-items: center;
-    background: rgba(10, 10, 15, 0.5); backdrop-filter: blur(12px); font-size: 0.85rem; color: var(--text-secondary);
+    background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(16px); font-size: 0.8rem; color: var(--text-secondary);
 }
 .footer-stats { display: flex; gap: 1.5rem; }
 .status-ok { color: var(--success-color); }
