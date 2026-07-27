@@ -90,7 +90,8 @@ window.initApiDashboard = async function() {
     const statModels = document.getElementById('statModels');
     const modelSelect = document.getElementById('defaultModelSelect');
     const statusIndicator = document.getElementById('statusIndicator');
-    const LITELLM_KEY = 'sk-localllm-7f2b5d7966042cc842ff6949653e9db1';
+    // Cloud model patterns — everything else is considered local
+    const CLOUD_MODELS = ['gpt-4o', 'gpt-4', 'gpt-3.5', 'claude', 'gemini'];
 
     async function refreshUsageStats() {
         const statLocal = document.getElementById('statLocal');
@@ -100,33 +101,40 @@ window.initApiDashboard = async function() {
         if (!statLocal) return;
 
         try {
-            const resp = await fetchWithTimeout('/litellm/spend/logs', {
-                headers: { 'Authorization': `Bearer ${LITELLM_KEY}` },
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const resp = await fetchWithTimeout('/api/v1/chats/', {
+                headers: { 'Authorization': `Bearer ${token}` },
                 timeout: 5000,
             });
             if (resp.ok) {
-                const logs = await resp.json();
-                let localCount = 0, cloudCount = 0, totalSpend = 0;
+                const chats = await resp.json();
+                let localCount = 0, cloudCount = 0;
                 
-                for (const entry of logs) {
-                    const model = (entry.model || '').toLowerCase();
-                    const provider = (entry.custom_llm_provider || entry.model_group || '').toLowerCase();
-                    const spend = parseFloat(entry.spend) || 0;
+                for (const chat of chats) {
+                    // Each chat has a 'chat' property with messages and model info
+                    const models = chat.chat?.models || [];
+                    const title = (chat.chat?.title || '').toLowerCase();
                     
-                    if (provider.includes('ollama') || model.includes('ollama')) {
-                        localCount++;
-                    } else {
-                        cloudCount++;
-                        totalSpend += spend;
+                    // Check model names used in this chat
+                    let isCloud = false;
+                    for (const modelId of models) {
+                        const mid = (modelId || '').toLowerCase();
+                        if (CLOUD_MODELS.some(cm => mid.includes(cm))) {
+                            isCloud = true;
+                            break;
+                        }
                     }
+                    
+                    if (isCloud) cloudCount++;
+                    else localCount++;
                 }
                 
                 statLocal.textContent = localCount;
                 statCloud.textContent = cloudCount;
-                statSpend.textContent = totalSpend.toFixed(2);
-                
-                // Color the spend red if above $1
-                statSpend.style.color = totalSpend > 1 ? '#ef4444' : '#f59e0b';
+                statSpend.textContent = cloudCount > 0 ? '~' + (cloudCount * 0.01).toFixed(2) : '0.00';
+                statSpend.style.color = cloudCount > 0 ? '#f59e0b' : '#22c55e';
             }
         } catch (e) {
             console.warn('[LocalLLM] Usage stats unavailable:', e.message);
