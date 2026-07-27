@@ -118,8 +118,13 @@ function New-DockerComposeFile {
         $content = $content -replace '\{\{GPU_SECTION_START\}\}', ''
         $content = $content -replace '\{\{GPU_SECTION_END\}\}', ''
         
+        # Feature-based sections (safe access for PSCustomObject)
+        $features = Get-ConfigValue $Config 'Features' $null
+
         # Web Search section
-        if ($Config.Features.WebSearch) {
+        $hasWebSearch = $false
+        try { $hasWebSearch = $features.WebSearch } catch {}
+        if ($hasWebSearch) {
             $content = $content -replace '\{\{SEARXNG_SECTION_START\}\}', ''
             $content = $content -replace '\{\{SEARXNG_SECTION_END\}\}', ''
             $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', "      - SEARXNG_API_URL=http://searxng:8080"
@@ -129,7 +134,9 @@ function New-DockerComposeFile {
         }
         
         # ToolCalling section
-        if ($Config.Features.ToolCalling) {
+        $hasToolCalling = $false
+        try { $hasToolCalling = $features.ToolCalling } catch {}
+        if ($hasToolCalling) {
             $content = $content -replace '\{\{PIPELINES_SECTION_START\}\}', ''
             $content = $content -replace '\{\{PIPELINES_SECTION_END\}\}', ''
             $content = $content -replace '\{\{PIPELINES_ENV\}\}', "      - PIPELINES_URL=http://pipelines:9099"
@@ -139,23 +146,46 @@ function New-DockerComposeFile {
         }
         
         # Tika section
-        if ($Config.Features.RAG) {
+        $hasRAG = $false
+        try { $hasRAG = $features.RAG } catch {}
+        if ($hasRAG) {
             $content = $content -replace '\{\{TIKA_SECTION_START\}\}', ''
             $content = $content -replace '\{\{TIKA_SECTION_END\}\}', ''
-            $content = $content -replace '\{\{TIKA_ENV\}\}', "- CONTENT_EXTRACTION_ENGINE=tika`n      - TIKA_SERVER_URL=http://tika:9998"
+            $content = $content -replace '\{\{TIKA_ENV\}\}', "      - CONTENT_EXTRACTION_ENGINE=tika`n      - TIKA_SERVER_URL=http://tika:9998"
         } else {
             $content = $content -replace '(?s)\{\{TIKA_SECTION_START\}\}.*?\{\{TIKA_SECTION_END\}\}', ''
             $content = $content -replace '\{\{TIKA_ENV\}\}', ''
         }
         
-        # Cloud Keys Env
+        # Cloud Keys Env (handle both hashtable and PSCustomObject)
         $cloudKeysStr = ""
-        if ($Config.CloudKeys) {
-            foreach ($key in $Config.CloudKeys.Keys) {
-                $cloudKeysStr += "`n      - $key=$($Config.CloudKeys[$key])"
+        $cloudKeys = Get-ConfigValue $Config 'CloudKeys' $null
+        if ($cloudKeys) {
+            if ($cloudKeys -is [hashtable]) {
+                foreach ($key in $cloudKeys.Keys) {
+                    $val = $cloudKeys[$key]
+                    if (-not [string]::IsNullOrWhiteSpace($val)) {
+                        $cloudKeysStr += "`n      - ${key}=${val}"
+                    }
+                }
+            } else {
+                foreach ($prop in $cloudKeys.PSObject.Properties) {
+                    if (-not [string]::IsNullOrWhiteSpace($prop.Value)) {
+                        $cloudKeysStr += "`n      - $($prop.Name)=$($prop.Value)"
+                    }
+                }
             }
         }
         $content = $content -replace '\{\{CLOUD_KEYS_ENV\}\}', $cloudKeysStr
+        
+        # Generate LiteLLM key and replace in compose file too
+        $liteLLMKey = Get-ConfigValue $Config 'LiteLLMKey' $null
+        if (-not $liteLLMKey) { $liteLLMKey = New-LiteLLMKey; $Config.LiteLLMKey = $liteLLMKey }
+        $hasMultiUser = $false
+        try { $hasMultiUser = $features.MultiUser } catch {}
+        $multiUser = if ($hasMultiUser) { "True" } else { "False" }
+        $content = $content -replace '\{\{LITELLM_KEY\}\}', $liteLLMKey
+        $content = $content -replace '\{\{MULTI_USER\}\}', $multiUser
         
         # Ensure config dir exists
         $configDir = Split-Path $outPath
