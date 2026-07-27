@@ -127,7 +127,7 @@ function New-DockerComposeFile {
         if ($hasWebSearch) {
             $content = $content -replace '\{\{SEARXNG_SECTION_START\}\}', ''
             $content = $content -replace '\{\{SEARXNG_SECTION_END\}\}', ''
-            $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', "      - SEARXNG_API_URL=http://searxng:8080"
+            $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', "- SEARXNG_API_URL=http://searxng:8080"
         } else {
             $content = $content -replace '(?s)\{\{SEARXNG_SECTION_START\}\}.*?\{\{SEARXNG_SECTION_END\}\}', ''
             $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', ''
@@ -139,7 +139,7 @@ function New-DockerComposeFile {
         if ($hasToolCalling) {
             $content = $content -replace '\{\{PIPELINES_SECTION_START\}\}', ''
             $content = $content -replace '\{\{PIPELINES_SECTION_END\}\}', ''
-            $content = $content -replace '\{\{PIPELINES_ENV\}\}', "      - PIPELINES_URL=http://pipelines:9099"
+            $content = $content -replace '\{\{PIPELINES_ENV\}\}', "- PIPELINES_URL=http://pipelines:9099"
         } else {
             $content = $content -replace '(?s)\{\{PIPELINES_SECTION_START\}\}.*?\{\{PIPELINES_SECTION_END\}\}', ''
             $content = $content -replace '\{\{PIPELINES_ENV\}\}', ''
@@ -151,7 +151,7 @@ function New-DockerComposeFile {
         if ($hasRAG) {
             $content = $content -replace '\{\{TIKA_SECTION_START\}\}', ''
             $content = $content -replace '\{\{TIKA_SECTION_END\}\}', ''
-            $content = $content -replace '\{\{TIKA_ENV\}\}', "      - CONTENT_EXTRACTION_ENGINE=tika`n      - TIKA_SERVER_URL=http://tika:9998"
+            $content = $content -replace '\{\{TIKA_ENV\}\}', "- CONTENT_EXTRACTION_ENGINE=tika`n      - TIKA_SERVER_URL=http://tika:9998"
         } else {
             $content = $content -replace '(?s)\{\{TIKA_SECTION_START\}\}.*?\{\{TIKA_SECTION_END\}\}', ''
             $content = $content -replace '\{\{TIKA_ENV\}\}', ''
