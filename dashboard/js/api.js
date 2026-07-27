@@ -90,6 +90,48 @@ window.initApiDashboard = async function() {
     const statModels = document.getElementById('statModels');
     const modelSelect = document.getElementById('defaultModelSelect');
     const statusIndicator = document.getElementById('statusIndicator');
+    const LITELLM_KEY = 'sk-localllm-7f2b5d7966042cc842ff6949653e9db1';
+
+    async function refreshUsageStats() {
+        const statLocal = document.getElementById('statLocal');
+        const statCloud = document.getElementById('statCloud');
+        const statSpend = document.getElementById('statSpend');
+        
+        if (!statLocal) return;
+
+        try {
+            const resp = await fetchWithTimeout('/litellm/spend/logs', {
+                headers: { 'Authorization': `Bearer ${LITELLM_KEY}` },
+                timeout: 5000,
+            });
+            if (resp.ok) {
+                const logs = await resp.json();
+                let localCount = 0, cloudCount = 0, totalSpend = 0;
+                
+                for (const entry of logs) {
+                    const model = (entry.model || '').toLowerCase();
+                    const provider = (entry.custom_llm_provider || entry.model_group || '').toLowerCase();
+                    const spend = parseFloat(entry.spend) || 0;
+                    
+                    if (provider.includes('ollama') || model.includes('ollama')) {
+                        localCount++;
+                    } else {
+                        cloudCount++;
+                        totalSpend += spend;
+                    }
+                }
+                
+                statLocal.textContent = localCount;
+                statCloud.textContent = cloudCount;
+                statSpend.textContent = totalSpend.toFixed(2);
+                
+                // Color the spend red if above $1
+                statSpend.style.color = totalSpend > 1 ? '#ef4444' : '#f59e0b';
+            }
+        } catch (e) {
+            console.warn('[LocalLLM] Usage stats unavailable:', e.message);
+        }
+    }
 
     async function refreshData() {
         const isOnline = await getStatus();
@@ -123,6 +165,9 @@ window.initApiDashboard = async function() {
 
         // Mock RAM/CPU updates for realism
         document.getElementById('statRam').textContent = (Math.random() * (16 - 8) + 8).toFixed(1) + ' GB';
+        
+        // Refresh usage tracking
+        await refreshUsageStats();
     }
 
     // Initial fetch

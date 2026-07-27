@@ -250,6 +250,12 @@ footer {
 }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
+/* Usage tracking stats */
+.stat-divider { color: rgba(255,255,255,0.15); margin: 0 4px; }
+.stat-local { color: #22c55e; font-weight: 600; }
+.stat-cloud { color: #f59e0b; font-weight: 600; }
+.stat-spend { color: #f59e0b; font-weight: 600; }
+
 /* Responsive */
 @media (max-width: 1024px) { .personas-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 768px) {
