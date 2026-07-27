@@ -435,35 +435,166 @@ function Invoke-RemoveModel {
 function Invoke-Update {
     Show-Header
     $composePath = Get-ComposeFile
+    $checkOnly = $Options -contains '--check'
 
-    Write-Host "  Updating LocalLLM..." -ForegroundColor Cyan
+    Write-Host "  🔄 LocalLLM Update Manager" -ForegroundColor Cyan
     Write-Host ""
 
-    # Pull latest images
-    Write-Host "  📦 Pulling latest Docker images..." -ForegroundColor Gray
-    Invoke-DockerCompose pull
-
-    # Recreate containers with new images
-    Write-Host ""
-    Write-Host "  🔄 Restarting services with updated images..." -ForegroundColor Gray
-    Invoke-DockerCompose up -d
-
-    # Update models
-    Write-Host ""
-    Write-Host "  🧠 Updating installed models..." -ForegroundColor Gray
-    $config = Get-InstallConfig
-    try {
-        $models = (Invoke-RestMethod -Uri "http://localhost:$($config.OLLAMA_PORT ?? '11434')/api/tags" -TimeoutSec 10).models
-        foreach ($m in $models) {
-            Write-Host "    Updating $($m.name)..." -ForegroundColor Gray
-            docker exec ollama ollama pull $m.name 2>&1 | Out-Null
-        }
-    } catch {
-        Write-Host "    ⚠️  Could not update models (Ollama may still be starting)" -ForegroundColor Yellow
+    # ── 1. Check for Docker image updates ──
+    if (-not $checkOnly) {
+        Write-Host "  📦 Pulling latest Docker images..." -ForegroundColor Gray
+        Invoke-DockerCompose pull
+        Write-Host ""
+        Write-Host "  🔄 Restarting services with updated images..." -ForegroundColor Gray
+        Invoke-DockerCompose up -d
+        Write-Host ""
     }
 
+    # ── 2. Check installed models for weight updates ──
+    Write-Host "  🧠 Checking installed models for updates..." -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  ✅ Update complete." -ForegroundColor Green
+    
+    $config = Get-InstallConfig
+    $ollamaPort = $config.OLLAMA_PORT ?? '11434'
+    $containerName = 'localllm-ollama'
+    
+    try {
+        $installedModels = (Invoke-RestMethod -Uri "http://localhost:$ollamaPort/api/tags" -TimeoutSec 10).models
+    } catch {
+        Write-Host "    ⚠️  Cannot reach Ollama API (is it running?)" -ForegroundColor Yellow
+        return
+    }
+    
+    if (-not $installedModels -or $installedModels.Count -eq 0) {
+        Write-Host "    No models installed." -ForegroundColor Yellow
+        return
+    }
+    
+    $updatesAvailable = @()
+    
+    foreach ($model in $installedModels) {
+        $name = $model.name
+        $sizeGB = [math]::Round($model.size / 1GB, 1)
+        $modified = if ($model.modified_at) { 
+            try { [datetime]::Parse($model.modified_at).ToString('yyyy-MM-dd') } catch { 'unknown' }
+        } else { 'unknown' }
+        
+        # Check if a newer digest is available
+        Write-Host "    Checking $name ($($sizeGB)GB, updated $modified)..." -ForegroundColor Gray -NoNewline
+        
+        try {
+            # Use ollama show to get current digest, then pull with --dry-run behavior
+            $showOutput = docker exec $containerName ollama show $name --modelfile 2>&1 | Select-String "^FROM" | Select-Object -First 1
+            $pullCheck = docker exec $containerName ollama pull $name 2>&1
+            $pullText = $pullCheck -join ' '
+            
+            if ($pullText -match 'up to date') {
+                Write-Host " ✅ up to date" -ForegroundColor Green
+            } else {
+                Write-Host " 🔄 UPDATE AVAILABLE" -ForegroundColor Yellow
+                $updatesAvailable += @{ Name = $name; SizeGB = $sizeGB; Status = 'weight-update' }
+            }
+        } catch {
+            Write-Host " ⚠️ check failed" -ForegroundColor Yellow
+        }
+    }
+    
+    # ── 3. Check for better models from catalog ──
+    Write-Host ""
+    Write-Host "  📊 Checking for recommended model upgrades..." -ForegroundColor Gray
+    Write-Host ""
+    
+    $modelSelectorPath = Join-Path $ProjectRoot "lib" "model-selector.ps1"
+    if (Test-Path $modelSelectorPath) {
+        . $modelSelectorPath
+        
+        # Detect hardware tier
+        $sysDetectPath = Join-Path $ProjectRoot "lib" "system-detect.ps1"
+        if (Test-Path $sysDetectPath) {
+            . $sysDetectPath
+            $cpuInfo = Get-CPUInfo
+            $memInfo = Get-MemoryInfo
+            $gpuInfo = Get-GPUInfo
+            
+            $profile = @{
+                HardwareTier = Get-HardwareTier -CPUInfo $cpuInfo -MemInfo $memInfo -GPUInfo $gpuInfo
+                Memory = $memInfo
+            }
+            
+            $recommended = Get-RecommendedModels -SystemProfile $profile
+            $installedNames = $installedModels | ForEach-Object { $_.name -replace ':latest$', '' }
+            
+            $upgrades = @()
+            foreach ($rec in $recommended) {
+                $recBase = $rec.Name -replace ':latest$', ''
+                $isInstalled = $installedNames | Where-Object { $_ -eq $recBase -or $_ -like "$recBase*" }
+                
+                if (-not $isInstalled) {
+                    # Check if we have an older/smaller model in the same category
+                    $currentInCategory = $null
+                    $catalog = Get-ModelCatalog
+                    foreach ($installed in $installedNames) {
+                        $catalogMatch = $catalog | Where-Object { 
+                            ($_.Name -replace ':latest$', '') -eq $installed -and $_.Category -eq $rec.Category 
+                        }
+                        if ($catalogMatch) { $currentInCategory = $catalogMatch; break }
+                    }
+                    
+                    $upgrades += @{
+                        Recommended = $rec
+                        Current = $currentInCategory
+                        Category = $rec.Category
+                    }
+                }
+            }
+            
+            if ($upgrades.Count -gt 0) {
+                Write-Host "    Upgrades available for your hardware tier ($($profile.HardwareTier), $([math]::Round($memInfo.TotalGB, 0))GB RAM):" -ForegroundColor Yellow
+                Write-Host ""
+                foreach ($u in $upgrades) {
+                    $arrow = if ($u.Current) { "$($u.Current.Name) → " } else { "" }
+                    Write-Host "    [$($u.Category)]" -ForegroundColor Cyan -NoNewline
+                    Write-Host " ${arrow}$($u.Recommended.Name)" -ForegroundColor White -NoNewline
+                    Write-Host " ($($u.Recommended.SizeGB)GB) — $($u.Recommended.Description)" -ForegroundColor Gray
+                }
+                Write-Host ""
+                
+                if (-not $checkOnly) {
+                    $install = Read-Host "  Install recommended upgrades? [y/N]"
+                    if ($install -eq 'y' -or $install -eq 'Y') {
+                        foreach ($u in $upgrades) {
+                            Write-Host ""
+                            Write-Host "    📥 Pulling $($u.Recommended.Name)..." -ForegroundColor Cyan
+                            docker exec $containerName ollama pull $u.Recommended.Name
+                            
+                            if ($u.Current) {
+                                $removeOld = Read-Host "    Remove old model $($u.Current.Name)? [y/N]"
+                                if ($removeOld -eq 'y' -or $removeOld -eq 'Y') {
+                                    docker exec $containerName ollama rm $u.Current.Name
+                                    Write-Host "    🗑️  Removed $($u.Current.Name)" -ForegroundColor Gray
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Write-Host "    ✅ All recommended models for your tier are already installed." -ForegroundColor Green
+            }
+        }
+    }
+    
+    # ── 4. Summary ──
+    Write-Host ""
+    if ($checkOnly) {
+        $total = $updatesAvailable.Count + $(if ($upgrades) { $upgrades.Count } else { 0 })
+        if ($total -gt 0) {
+            Write-Host "  📋 $total update(s) available. Run '.\localllm.ps1 update' to install." -ForegroundColor Yellow
+        } else {
+            Write-Host "  ✅ Everything is up to date." -ForegroundColor Green
+        }
+    } else {
+        Write-Host "  ✅ Update complete." -ForegroundColor Green
+    }
     Write-Host ""
 }
 
