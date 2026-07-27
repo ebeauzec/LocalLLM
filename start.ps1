@@ -178,10 +178,32 @@ Write-Host "  📝 All your conversations persist between sessions." -Foreground
 Write-Host "  📁 Uploaded documents stay in your knowledge base." -ForegroundColor White
 Write-Host "  🧠 AI picks up exactly where you left off." -ForegroundColor White
 Write-Host ""
+
+# Check for model updates in the background
+$updateCheckModule = Join-Path $ProjectRoot "lib" "model-update-check.ps1"
+if (Test-Path $updateCheckModule) {
+    Write-Host "  🔍 Checking for model updates..." -ForegroundColor Gray
+    try {
+        . $updateCheckModule
+        $updateResults = Test-ModelUpdates -ProjectRoot $ProjectRoot -Quiet
+        $bannerInfo = Save-UpdateStatus -ProjectRoot $ProjectRoot -Results $updateResults
+        Show-UpdateBanner -Results $updateResults
+        
+        if ($bannerInfo.HasUpdates) {
+            Set-WebUIBanner -ProjectRoot $ProjectRoot -BannerText $bannerInfo.BannerText
+        } else {
+            Set-WebUIBanner -ProjectRoot $ProjectRoot -Clear
+        }
+    } catch {
+        Write-Host "  ⚠️  Update check skipped: $_" -ForegroundColor Yellow
+    }
+}
+
 Write-Host "  Quick Commands:" -ForegroundColor Cyan
 Write-Host "    .\start.ps1              Start & open browser" -ForegroundColor Gray
 Write-Host "    .\start.ps1 -Stop        Graceful shutdown" -ForegroundColor Gray
 Write-Host "    .\start.ps1 -Status      Check service status" -ForegroundColor Gray
+Write-Host "    .\localllm.ps1 update    Install model updates" -ForegroundColor Gray
 Write-Host "    .\start.ps1 -Analytics   View cost savings" -ForegroundColor Gray
 Write-Host ""
 
