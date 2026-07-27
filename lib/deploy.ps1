@@ -323,14 +323,41 @@ function New-SearXNGConfig {
 }
 
 function Start-DockerCompose {
+    <#
+    .SYNOPSIS
+        Starts Docker Compose services with retry logic.
+    .DESCRIPTION
+        Pulls images first (with retries for transient network errors),
+        then starts services. Separating pull from up avoids partial
+        startups when one image fails to download.
+    #>
     [CmdletBinding()]
     param()
     
+    $configDir = Join-Path $script:ProjectRoot "config"
+    $composePath = Join-Path $configDir "docker-compose.yml"
+    $maxRetries = 3
+    
+    # Step 1: Pull images (retries for network failures)
+    Write-LogMessage "Pulling Docker images..." -Level Step
+    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" pull" -Wait -NoNewWindow -PassThru
+        if ($process.ExitCode -eq 0) {
+            Write-LogMessage "All images pulled successfully." -Level Success
+            break
+        }
+        if ($attempt -lt $maxRetries) {
+            $waitSecs = $attempt * 15
+            Write-LogMessage "Image pull failed (attempt $attempt/$maxRetries). Retrying in ${waitSecs}s..." -Level Warning
+            Start-Sleep -Seconds $waitSecs
+        } else {
+            Write-LogMessage "Image pull failed after $maxRetries attempts. Continuing with available images..." -Level Warning
+        }
+    }
+    
+    # Step 2: Start services
     try {
         Write-LogMessage "Starting Docker Compose services..." -Level Step
-        $configDir = Join-Path $script:ProjectRoot "config"
-        $composePath = Join-Path $configDir "docker-compose.yml"
-        
         Push-Location $script:ProjectRoot
         $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" up -d" -Wait -NoNewWindow -PassThru
         Pop-Location
