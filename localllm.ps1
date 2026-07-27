@@ -37,7 +37,7 @@ param(
     [Parameter(Position = 0, Mandatory = $false)]
     [ValidateSet('start', 'stop', 'restart', 'status', 'update', 'models',
                  'add-model', 'remove-model', 'logs', 'config', 'doctor',
-                 'backup', 'uninstall', 'help', '')]
+                 'backup', 'privacy', 'uninstall', 'help', '')]
     [string]$Command = 'help',
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -68,6 +68,10 @@ if (Test-Path $wizardPath) { . $wizardPath }
 # Load system-detect if available
 $sysDetectPath = Join-Path $script:LibPath "system-detect.ps1"
 if (Test-Path $sysDetectPath) { . $sysDetectPath }
+
+# Load privacy guard if available
+$privacyPath = Join-Path $script:LibPath "privacy-guard.ps1"
+if (Test-Path $privacyPath) { . $privacyPath }
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -127,6 +131,12 @@ function Show-Help {
     doctor                Run diagnostics with auto-healing
     backup                Backup chat history and configuration
     logs [service]        View service logs (ollama|litellm|open-webui|searxng)
+
+  Privacy & Security:
+    privacy [mode]        Set privacy mode (strict|balanced|permissive)
+    privacy report        View privacy audit report (local vs cloud usage)
+    privacy status        Show current privacy settings
+    privacy blocklist     Manage custom sensitive data patterns
 
   Configuration:
     config                Re-run the configuration wizard
@@ -474,6 +484,87 @@ function Invoke-Backup {
 }
 
 # ---------------------------------------------------------------------------
+# Command: privacy
+# ---------------------------------------------------------------------------
+function Invoke-Privacy {
+    Show-Header
+    $subcommand = if ($Options -and $Options.Count -gt 0) { $Options[0].ToLower() } else { 'status' }
+
+    switch ($subcommand) {
+        'strict' {
+            Set-PrivacyMode -Mode 'STRICT'
+            Write-Host "  🔒 Privacy mode set to STRICT." -ForegroundColor Green
+            Write-Host "     All processing will stay local. Cloud APIs are disabled." -ForegroundColor Gray
+            Write-Host "     Restart services to apply: .\localllm.ps1 restart" -ForegroundColor Cyan
+        }
+        'balanced' {
+            Set-PrivacyMode -Mode 'BALANCED'
+            Write-Host "  🛡️  Privacy mode set to BALANCED." -ForegroundColor Yellow
+            Write-Host "     Local-first with guarded cloud fallback." -ForegroundColor Gray
+            Write-Host "     Restart services to apply: .\localllm.ps1 restart" -ForegroundColor Cyan
+        }
+        'permissive' {
+            Set-PrivacyMode -Mode 'PERMISSIVE'
+            Write-Host "  ⚠️  Privacy mode set to PERMISSIVE." -ForegroundColor Red
+            Write-Host "     Cloud access allowed. Sensitive data will be auto-redacted." -ForegroundColor Gray
+            Write-Host "     Restart services to apply: .\localllm.ps1 restart" -ForegroundColor Cyan
+        }
+        'report' {
+            $report = Get-PrivacyReport
+            Write-Host "  📊 Privacy Audit Report" -ForegroundColor Cyan
+            Write-Host "  $('-' * 50)" -ForegroundColor DarkGray
+            Write-Host "  Total Requests:      $($report.TotalRequests)" -ForegroundColor White
+            Write-Host "  Kept Local:          $($report.LocalRequests) ($($report.LocalPercentage)%)" -ForegroundColor Green
+            Write-Host "  Sent to Cloud:       $($report.CloudRequests) ($($report.CloudPercentage)%)" -ForegroundColor Yellow
+            Write-Host "  Blocked (sensitive): $($report.BlockedRequests)" -ForegroundColor Red
+            Write-Host "  Est. Cost Saved:     `$$($report.EstimatedSavings)" -ForegroundColor Green
+            Write-Host "  $('-' * 50)" -ForegroundColor DarkGray
+
+            if ($report.DetectionsByType -and $report.DetectionsByType.Count -gt 0) {
+                Write-Host ""
+                Write-Host "  Sensitive Data Detections:" -ForegroundColor Cyan
+                foreach ($detection in $report.DetectionsByType.GetEnumerator()) {
+                    Write-Host "    • $($detection.Key): $($detection.Value) occurrence(s)" -ForegroundColor Gray
+                }
+            }
+        }
+        'status' {
+            Show-PrivacyStatus
+        }
+        'blocklist' {
+            if ($Options.Count -gt 1 -and $Options[1] -eq 'add') {
+                $pattern = if ($Options.Count -gt 2) { $Options[2..($Options.Count-1)] -join ' ' } else { Read-Host "  Enter pattern to block" }
+                Update-PrivacyBlocklist -Pattern $pattern -Action 'Add'
+                Write-Host "  ✅ Pattern added to blocklist." -ForegroundColor Green
+            } elseif ($Options.Count -gt 1 -and $Options[1] -eq 'show') {
+                $blocklistPath = Join-Path $PSScriptRoot "config" "privacy-blocklist.txt"
+                if (Test-Path $blocklistPath) {
+                    Write-Host "  Current blocklist patterns:" -ForegroundColor Cyan
+                    Get-Content $blocklistPath | ForEach-Object { Write-Host "    • $_" -ForegroundColor Gray }
+                } else {
+                    Write-Host "  No custom blocklist configured." -ForegroundColor Yellow
+                    Write-Host "  Use: .\localllm.ps1 privacy blocklist add <pattern>" -ForegroundColor Gray
+                }
+            } else {
+                Write-Host "  Usage:" -ForegroundColor Cyan
+                Write-Host "    .\localllm.ps1 privacy blocklist add <pattern>  — Add a pattern" -ForegroundColor Gray
+                Write-Host "    .\localllm.ps1 privacy blocklist show           — Show all patterns" -ForegroundColor Gray
+            }
+        }
+        default {
+            Write-Host "  Usage:" -ForegroundColor Cyan
+            Write-Host "    .\localllm.ps1 privacy strict       — Maximum privacy (no cloud)" -ForegroundColor Gray
+            Write-Host "    .\localllm.ps1 privacy balanced     — Smart privacy (default)" -ForegroundColor Gray
+            Write-Host "    .\localllm.ps1 privacy permissive   — Allow cloud (auto-redact)" -ForegroundColor Gray
+            Write-Host "    .\localllm.ps1 privacy report       — View audit report" -ForegroundColor Gray
+            Write-Host "    .\localllm.ps1 privacy status       — Show current settings" -ForegroundColor Gray
+            Write-Host "    .\localllm.ps1 privacy blocklist    — Manage data blocklist" -ForegroundColor Gray
+        }
+    }
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
 # Command: config
 # ---------------------------------------------------------------------------
 function Invoke-Config {
@@ -608,6 +699,7 @@ try {
         'config'       { Invoke-Config }
         'doctor'       { Invoke-Doctor }
         'backup'       { Invoke-Backup }
+        'privacy'      { Invoke-Privacy }
         'uninstall'    { Invoke-Uninstall }
         'help'         { Show-Help }
         default        { Show-Help }

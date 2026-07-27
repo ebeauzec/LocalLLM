@@ -1,29 +1,94 @@
+# ============================================================================
 # LocalLLM LiteLLM Configuration Template
 # Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+#
+# This template is processed by lib/deploy.ps1 to generate the final
+# litellm_config.yaml. Placeholders ({{...}}) are replaced at install time.
+#
+# ROUTING PHILOSOPHY: LOCAL-FIRST, PRIVACY-AWARE
+# ─────────────────────────────────────────────
+# 1. ALL requests route to local models FIRST (zero cost, zero data leakage)
+# 2. Cloud APIs are ONLY used as fallback when local fails
+# 3. Cost-based routing ensures the cheapest option is always preferred
+# 4. In STRICT privacy mode, cloud fallbacks are disabled entirely
+# ============================================================================
 
 model_list:
-  # Local Models (Ollama)
-  # {{LOCAL_MODELS_SECTION}} will be replaced with configured local models
+  # ──────────────────────────────────────────────────────────────────────────
+  # LOCAL MODELS (Ollama) — Free, Private, No Data Leaves Your Machine
+  # ──────────────────────────────────────────────────────────────────────────
+  # These models run entirely on your hardware. All data stays local.
+  # Cost per token: $0.00 (always preferred by cost-based routing)
+  # ──────────────────────────────────────────────────────────────────────────
 {{LOCAL_MODELS_SECTION}}
 
-  # Cloud Fallback Models
-  # {{CLOUD_MODELS_SECTION}} will be replaced with configured cloud models
+  # ──────────────────────────────────────────────────────────────────────────
+  # CLOUD FALLBACK MODELS — Used ONLY when local models fail or are overloaded
+  # ──────────────────────────────────────────────────────────────────────────
+  # ⚠️  WARNING: Data sent to cloud models leaves your machine!
+  # These are disabled entirely in STRICT privacy mode.
+  # In BALANCED mode, the privacy guard scans content before cloud routing.
+  # In PERMISSIVE mode, sensitive data is auto-redacted before cloud send.
+  #
+  # Cost-based routing ensures these are always the LAST resort.
+  # ──────────────────────────────────────────────────────────────────────────
 {{CLOUD_MODELS_SECTION}}
 
 litellm_settings:
+  # Drop unsupported params instead of erroring (improves cross-model compat)
   drop_params: true
   set_verbose: false
+
+  # Long timeout for local models (they may be slower than cloud)
   request_timeout: 600
+
+  # Retry failed requests (helps with local model occasional hiccups)
   num_retries: 2
 
+  # ────────────────────────────────────────────────────────────────────────
+  # COST CONFIGURATION — Local models are free ($0.00 per token)
+  # This ensures cost-based routing ALWAYS prefers local over cloud.
+  # ────────────────────────────────────────────────────────────────────────
+  # Local Ollama models have no cost, so they are always selected first.
+  # Cloud models carry their standard per-token pricing.
+  # The router will only use cloud when local is unavailable or errors out.
+
 router_settings:
+  # cost-based-routing-v2: Routes to cheapest available model first
+  # Since local models cost $0, they are ALWAYS preferred over cloud
   routing_strategy: "cost-based-routing-v2"
+
+  # Number of retries before falling back to next model
   num_retries: 3
+
+  # Timeout for individual requests (seconds)
   timeout: 120
+
+  # Wait time between retries (seconds)
   retry_after: 5
+
+  # ────────────────────────────────────────────────────────────────────────
+  # FALLBACK CHAIN — Local First, Cloud Only As Last Resort
+  # ────────────────────────────────────────────────────────────────────────
+  # If a local model fails (overloaded, OOM, context too long), the router
+  # will attempt the next model in the fallback chain.
+  #
+  # Chain: Local Primary → Local Secondary → Cloud (if configured + allowed)
+  #
+  # In STRICT privacy mode, the cloud entries below are removed entirely
+  # by the deploy script, making fallback impossible.
+  # ────────────────────────────────────────────────────────────────────────
   fallbacks:
-    # {{FALLBACK_RULES_SECTION}} will be replaced with fallback routing rules
 {{FALLBACK_RULES_SECTION}}
 
+  # ────────────────────────────────────────────────────────────────────────
+  # TOKEN BUDGET (optional) — Set daily/monthly limits on cloud API usage
+  # Uncomment and configure to cap cloud spending
+  # ────────────────────────────────────────────────────────────────────────
+  # max_budget: 10.0          # Maximum daily budget in USD
+  # budget_duration: "1d"     # Budget reset period
+
 general_settings:
-  master_key: "{{LITELLM_KEY}}" # Generated master key for internal API access
+  # Internal API key for service-to-service communication
+  # This key is auto-generated and not sent externally
+  master_key: "{{LITELLM_KEY}}"

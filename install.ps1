@@ -95,7 +95,8 @@ $modules = @(
     'prerequisites.ps1',
     'wizard.ps1',
     'deploy.ps1',
-    'health-check.ps1'
+    'health-check.ps1',
+    'privacy-guard.ps1'
 )
 
 foreach ($mod in $modules) {
