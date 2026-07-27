@@ -1,0 +1,11 @@
+# LocalLLM SearXNG Limiter Configuration
+# Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+# Rate limiting disabled for local use
+
+[botdetection.ip_limit]
+link_token = false
+
+[botdetection.ip_lists]
+pass_ip = [
+    '0.0.0.0/0',
+]

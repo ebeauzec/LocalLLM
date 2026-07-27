@@ -1,0 +1,50 @@
+# LocalLLM SearXNG Settings Template
+# Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "LocalLLM Search"
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "{{SEARXNG_SECRET}}" # {{SEARXNG_SECRET}} is the generated secret key for this instance
+  limiter: false
+  image_proxy: true
+  port: 8080
+  bind_address: "0.0.0.0"
+
+ui:
+  static_use_hash: true
+
+enabled_plugins:
+  - 'Hash plugin'
+  - 'Self Information'
+  - 'Tracker URL remover'
+  - 'Open Access DOI rewrite'
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    use_mobile_ui: false
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+  - name: github
+    engine: github
+    shortcut: gh
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: so

@@ -1,0 +1,97 @@
+# LocalLLM Docker Compose Template
+# Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+# This file is dynamically populated by deploy.ps1
+
+version: '3.8'
+
+services:
+  # Ollama service for running local models
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "{{OLLAMA_PORT}}:11434" # {{OLLAMA_PORT}} is the host port mapped to Ollama's internal 11434 port
+    volumes:
+      - "{{DATA_PATH}}/ollama:/root/.ollama" # {{DATA_PATH}} is the base path for persistent data
+    {{GPU_SECTION_START}}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    {{GPU_SECTION_END}}
+    restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:11434/ || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - localllm-network
+
+  # LiteLLM service for model routing and load balancing
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "{{LITELLM_PORT}}:4000" # {{LITELLM_PORT}} is the host port for the LiteLLM proxy
+    volumes:
+      - "{{CONFIG_PATH}}/litellm_config.yaml:/app/config.yaml" # {{CONFIG_PATH}} points to generated config
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
+    environment:
+      - LITELLM_MASTER_KEY={{LITELLM_KEY}} # {{LITELLM_KEY}} internal master key
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:4000/health || exit 1
+    networks:
+      - localllm-network
+
+  # Open-WebUI service as the main user interface
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "{{WEBUI_PORT}}:8080" # {{WEBUI_PORT}} is the host port for the WebUI
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - OPENAI_API_KEY={{LITELLM_KEY}}
+      - WEBUI_AUTH={{MULTI_USER}} # {{MULTI_USER}} enables/disables authentication (True/False)
+      - RAG_EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - {{RAG_WEB_SEARCH_ENV}} # Optional SearXNG environment variables
+    volumes:
+      - "{{DATA_PATH}}/open-webui:/app/backend/data"
+    depends_on:
+      - ollama
+      - litellm
+    restart: always
+    healthcheck:
+      test: curl -f http://localhost:8080/ || exit 1
+    networks:
+      - localllm-network
+
+  {{SEARXNG_SECTION_START}}
+  # SearXNG service for local web search capabilities
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "{{SEARXNG_PORT}}:8080" # {{SEARXNG_PORT}} is the host port for SearXNG
+    volumes:
+      - "{{CONFIG_PATH}}/searxng:/etc/searxng"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:{{SEARXNG_PORT}}/
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    networks:
+      - localllm-network
+  {{SEARXNG_SECTION_END}}
+
+networks:
+  localllm-network:
+    driver: bridge

@@ -1,0 +1,29 @@
+# LocalLLM LiteLLM Configuration Template
+# Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+
+model_list:
+  # Local Models (Ollama)
+  # {{LOCAL_MODELS_SECTION}} will be replaced with configured local models
+{{LOCAL_MODELS_SECTION}}
+
+  # Cloud Fallback Models
+  # {{CLOUD_MODELS_SECTION}} will be replaced with configured cloud models
+{{CLOUD_MODELS_SECTION}}
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  request_timeout: 600
+  num_retries: 2
+
+router_settings:
+  routing_strategy: "cost-based-routing-v2"
+  num_retries: 3
+  timeout: 120
+  retry_after: 5
+  fallbacks:
+    # {{FALLBACK_RULES_SECTION}} will be replaced with fallback routing rules
+{{FALLBACK_RULES_SECTION}}
+
+general_settings:
+  master_key: "{{LITELLM_KEY}}" # Generated master key for internal API access

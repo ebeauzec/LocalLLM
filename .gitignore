@@ -1,0 +1,26 @@
+# Data & Storage
+data/
+config/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+
+# State
+.localllm-install-state.json
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS Files
+.DS_Store
+Thumbs.db
