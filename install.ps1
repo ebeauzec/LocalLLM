@@ -58,7 +58,7 @@ $ProgressPreference = 'SilentlyContinue' # Speed up web requests
 # Constants
 # ---------------------------------------------------------------------------
 $script:LOCALLLM_VERSION = '0.1.0'
-$script:TOTAL_STEPS = 7
+$script:TOTAL_STEPS = 9
 $script:STATE_FILE = Join-Path $PSScriptRoot '.localllm-install-state.json'
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,9 @@ $modules = @(
     'wizard.ps1',
     'deploy.ps1',
     'health-check.ps1',
-    'privacy-guard.ps1'
+    'privacy-guard.ps1',
+    'setup-models.ps1',
+    'configure-webui.ps1'
 )
 
 foreach ($mod in $modules) {
@@ -350,11 +352,73 @@ function Start-Installation {
         }
 
         # -------------------------------------------------------------------
-        # STEP 7: Verification & Health Check
+        # STEP 7: Custom Model Profiles
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 7) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 7/$script:TOTAL_STEPS: Verification                             │" -ForegroundColor Cyan
+            Write-Host "  │  Step 7/$script:TOTAL_STEPS: Setting Up AI Profiles                    │" -ForegroundColor Cyan
+            Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+            Write-Host ""
+
+            Write-Host "  Creating specialized AI assistant profiles..." -ForegroundColor Gray
+            Write-Host "    • General Assistant — All-purpose chat & Q&A" -ForegroundColor DarkGray
+            Write-Host "    • Reasoning Engine — Deep thinking with chain-of-thought" -ForegroundColor DarkGray
+            Write-Host "    • Code Developer  — Software engineering & debugging" -ForegroundColor DarkGray
+            Write-Host "    • Data Analyst    — Statistics & data processing" -ForegroundColor DarkGray
+            Write-Host "    • Creative Writer — Content creation & copywriting" -ForegroundColor DarkGray
+            Write-Host "    • Security Analyst — Cybersecurity & threat modeling" -ForegroundColor DarkGray
+            Write-Host ""
+
+            Install-CustomModels -Config $state.Configuration
+
+            $state.LastStep = 7
+            Save-InstallState -State $state
+
+            Write-Host ""
+            Write-Host "  ✅ AI profiles created." -ForegroundColor Green
+            Write-Host ""
+            Start-Sleep -Seconds 1
+        } else {
+            Write-Host "  ⏭️  Step 7/$script:TOTAL_STEPS: AI Profiles — skipped (already done)" -ForegroundColor DarkGray
+        }
+
+        # -------------------------------------------------------------------
+        # STEP 8: Enterprise Configuration
+        # -------------------------------------------------------------------
+        if ($state.LastStep -lt 8) {
+            Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
+            Write-Host "  │  Step 8/$script:TOTAL_STEPS: Configuring Enterprise Features           │" -ForegroundColor Cyan
+            Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+            Write-Host ""
+
+            Write-Host "  Enabling enterprise capabilities..." -ForegroundColor Gray
+            Write-Host "    • Code execution sandbox" -ForegroundColor DarkGray
+            Write-Host "    • Artifacts rendering" -ForegroundColor DarkGray
+            Write-Host "    • Thinking/reasoning display" -ForegroundColor DarkGray
+            Write-Host "    • Developer tools (7 built-in tools)" -ForegroundColor DarkGray
+            Write-Host "    • Prompt template library (10 templates)" -ForegroundColor DarkGray
+            Write-Host "    • RAG optimization" -ForegroundColor DarkGray
+            Write-Host ""
+
+            Initialize-OpenWebUI -Config $state.Configuration
+
+            $state.LastStep = 8
+            Save-InstallState -State $state
+
+            Write-Host ""
+            Write-Host "  ✅ Enterprise features configured." -ForegroundColor Green
+            Write-Host ""
+            Start-Sleep -Seconds 1
+        } else {
+            Write-Host "  ⏭️  Step 8/$script:TOTAL_STEPS: Enterprise Config — skipped (already done)" -ForegroundColor DarkGray
+        }
+
+        # -------------------------------------------------------------------
+        # STEP 9: Verification & Health Check
+        # -------------------------------------------------------------------
+        if ($state.LastStep -lt 9) {
+            Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
+            Write-Host "  │  Step 9/$script:TOTAL_STEPS: Verification                             │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -374,7 +438,7 @@ function Start-Installation {
                 Show-HealthReport -Results $healthResults
             }
 
-            $state.LastStep = 7
+            $state.LastStep = 9
             $state.CompletedAt = (Get-Date -Format 'o')
             Save-InstallState -State $state
 

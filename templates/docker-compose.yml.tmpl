@@ -1,17 +1,31 @@
-# LocalLLM Docker Compose Template
+# ============================================================================
+# LocalLLM Docker Compose Template — Enterprise Edition
 # Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.
-# This file is dynamically populated by deploy.ps1
-
-version: '3.8'
+#
+# This template is processed by lib/deploy.ps1 to generate the final
+# docker-compose.yml. Placeholders ({{...}}) are replaced at install time.
+# Conditional sections are marked with {{SECTION_START}}/{{SECTION_END}}.
+#
+# Architecture:
+#   User → Open WebUI (frontend) → LiteLLM (router) → Ollama (local inference)
+#                ↕                      ↕                     ↕
+#           Pipelines (tools)    Cloud APIs (fallback)   GPU acceleration
+#                ↕
+#           SearXNG (search)
+# ============================================================================
 
 services:
-  # Ollama service for running local models
+  # ──────────────────────────────────────────────────────────────────────────
+  # OLLAMA — Local Model Inference Engine
+  # Runs AI models entirely on your hardware. No data leaves this container.
+  # ──────────────────────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
+    container_name: localllm-ollama
     ports:
-      - "{{OLLAMA_PORT}}:11434" # {{OLLAMA_PORT}} is the host port mapped to Ollama's internal 11434 port
+      - "{{OLLAMA_PORT}}:11434"
     volumes:
-      - "{{DATA_PATH}}/ollama:/root/.ollama" # {{DATA_PATH}} is the base path for persistent data
+      - "{{DATA_PATH}}/ollama:/root/.ollama"
     {{GPU_SECTION_START}}
     deploy:
       resources:
@@ -23,60 +37,136 @@ services:
     {{GPU_SECTION_END}}
     restart: unless-stopped
     healthcheck:
-      test: curl -f http://localhost:11434/ || exit 1
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/ || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - localllm-network
 
-  # LiteLLM service for model routing and load balancing
+  # ──────────────────────────────────────────────────────────────────────────
+  # LITELLM — API Gateway & Router
+  # Routes requests to local models first (free), cloud APIs as fallback.
+  # Provides a unified OpenAI-compatible endpoint for all consumers.
+  # ──────────────────────────────────────────────────────────────────────────
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
+    container_name: localllm-litellm
     ports:
-      - "{{LITELLM_PORT}}:4000" # {{LITELLM_PORT}} is the host port for the LiteLLM proxy
+      - "{{LITELLM_PORT}}:4000"
     volumes:
-      - "{{CONFIG_PATH}}/litellm_config.yaml:/app/config.yaml" # {{CONFIG_PATH}} points to generated config
-    command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
+      - "{{CONFIG_PATH}}/litellm_config.yaml:/app/config.yaml"
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
-      - LITELLM_MASTER_KEY={{LITELLM_KEY}} # {{LITELLM_KEY}} internal master key
+      - LITELLM_MASTER_KEY={{LITELLM_KEY}}
+      {{CLOUD_KEYS_ENV}}
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: curl -f http://localhost:4000/health || exit 1
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
     networks:
       - localllm-network
 
-  # Open-WebUI service as the main user interface
+  # ──────────────────────────────────────────────────────────────────────────
+  # OPEN WEBUI — Enterprise AI Frontend
+  # Full-featured web interface with chat, RAG, tools, artifacts, code
+  # execution, thinking display, MCP support, and admin dashboard.
+  # ──────────────────────────────────────────────────────────────────────────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
+    container_name: localllm-webui
     ports:
-      - "{{WEBUI_PORT}}:8080" # {{WEBUI_PORT}} is the host port for the WebUI
+      - "{{WEBUI_PORT}}:8080"
     environment:
+      # ── Model Connections ──
       - OLLAMA_BASE_URL=http://ollama:11434
       - OPENAI_API_BASE_URL=http://litellm:4000/v1
       - OPENAI_API_KEY={{LITELLM_KEY}}
-      - WEBUI_AUTH={{MULTI_USER}} # {{MULTI_USER}} enables/disables authentication (True/False)
+
+      # ── Authentication ──
+      - WEBUI_AUTH={{MULTI_USER}}
+
+      # ── RAG Configuration ──
       - RAG_EMBEDDING_MODEL=all-MiniLM-L6-v2
-      - {{RAG_WEB_SEARCH_ENV}} # Optional SearXNG environment variables
+      - RAG_EMBEDDING_ENGINE=ollama
+      - CHUNK_SIZE=1000
+      - CHUNK_OVERLAP=100
+      - RAG_TOP_K=5
+      - RAG_RELEVANCE_THRESHOLD=0.3
+
+      # ── Enterprise Features ──
+      - ENABLE_CODE_EXECUTION=True
+      - ENABLE_ARTIFACTS=True
+      - ENABLE_COMMUNITY_SHARING=False
+      - ENABLE_MESSAGE_RATING=True
+      - ENABLE_ADMIN_EXPORT=True
+
+      # ── Web Search (SearXNG) ──
+      {{RAG_WEB_SEARCH_ENV}}
+
+      # ── Pipelines Server ──
+      {{PIPELINES_ENV}}
+
+      # ── UI Configuration ──
+      - DEFAULT_LOCALE=en
+      - WEBUI_NAME=LocalLLM
+
     volumes:
       - "{{DATA_PATH}}/open-webui:/app/backend/data"
+      - "{{DATA_PATH}}/uploads:/app/backend/data/uploads"
     depends_on:
-      - ollama
-      - litellm
+      ollama:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
     restart: always
     healthcheck:
-      test: curl -f http://localhost:8080/ || exit 1
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - localllm-network
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # PIPELINES — Custom Tool Execution Server
+  # Runs custom Python tools, code execution, and agentic workflows.
+  # Extends Open WebUI with developer-grade capabilities.
+  # ──────────────────────────────────────────────────────────────────────────
+  {{PIPELINES_SECTION_START}}
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: localllm-pipelines
+    ports:
+      - "{{PIPELINES_PORT}}:9099"
+    volumes:
+      - "{{DATA_PATH}}/pipelines:/app/pipelines"
+    environment:
+      - PIPELINES_DIR=/app/pipelines
+    restart: unless-stopped
+    networks:
+      - localllm-network
+  {{PIPELINES_SECTION_END}}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SEARXNG — Private Web Search Engine
+  # Provides web search without tracking, analytics, or data collection.
+  # Search queries are proxied — your IP is hidden from search engines.
+  # ──────────────────────────────────────────────────────────────────────────
   {{SEARXNG_SECTION_START}}
-  # SearXNG service for local web search capabilities
   searxng:
     image: searxng/searxng:latest
+    container_name: localllm-searxng
     ports:
-      - "{{SEARXNG_PORT}}:8080" # {{SEARXNG_PORT}} is the host port for SearXNG
+      - "{{SEARXNG_PORT}}:8080"
     volumes:
       - "{{CONFIG_PATH}}/searxng:/etc/searxng"
     environment:
@@ -92,6 +182,12 @@ services:
       - localllm-network
   {{SEARXNG_SECTION_END}}
 
+# ──────────────────────────────────────────────────────────────────────────
+# NETWORKING
+# All services communicate on an isolated bridge network.
+# Only explicitly exposed ports are accessible from the host.
+# ──────────────────────────────────────────────────────────────────────────
 networks:
   localllm-network:
+    name: localllm-network
     driver: bridge

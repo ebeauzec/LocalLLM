@@ -35,6 +35,43 @@ LocalLLM is a one-command installer that gives you a local AI assistant comparab
 - **📊 Privacy audit trail**: Track what data stays local vs. cloud, with cost savings reporting.
 - **🛠️ Management CLI**: Powerful command-line tool for managing your AI environment.
 
+## 🧠 Enterprise AI Capabilities
+
+### 6 Specialized AI Profiles
+| Profile | Specialty | Best For |
+|:---|:---|:---|
+| 🤖 **General Assistant** | All-purpose chat & Q&A | Daily tasks, summarization, research |
+| 🧠 **Reasoning Engine** | Deep thinking with chain-of-thought | Math, logic, complex analysis |
+| 💻 **Code Developer** | Software engineering | Code gen, review, debugging, architecture |
+| 📊 **Data Analyst** | Statistics & data processing | SQL, pandas, visualization, reporting |
+| ✍️ **Creative Writer** | Content creation | Blog posts, copywriting, storytelling |
+| 🔒 **Security Analyst** | Cybersecurity | Code audits, threat modeling, compliance |
+
+### 7 Built-in Developer Tools
+| Tool | Capability |
+|:---|:---|
+| ⚡ **Code Executor** | Run Python code in a sandboxed environment |
+| 🌐 **Web Page Reader** | Fetch and analyze web pages |
+| 📁 **File Manager** | Read, write, and search local files |
+| 🔢 **Calculator** | Math, statistics, unit conversions |
+| 🕐 **DateTime Tool** | Date calculations, timezone conversions |
+| 💻 **System Info** | Monitor CPU, memory, disk, GPU |
+| 📋 **JSON/YAML Tool** | Parse, convert, query structured data |
+
+### Advanced Features
+- **🧠 Thinking/Reasoning** — Visible chain-of-thought with collapsible thinking blocks
+- **📦 Artifacts** — Render code, HTML, diagrams, and documents inline
+- **⚡ Code Execution** — Sandboxed Python execution for data analysis & calculations
+- **🔌 MCP Support** — Model Context Protocol for connecting external tools & data sources
+- **📚 Prompt Library** — 10 pre-built prompt templates for common tasks
+- **🔍 RAG/Documents** — Upload PDFs, Word docs, and text files for local Q&A
+- **🌐 Private Web Search** — SearXNG integration with no tracking
+- **🎛️ Admin Dashboard** — User management, usage analytics, model management
+- **🔑 OpenAI-Compatible API** — REST API for programmatic access and integrations
+
+> 📖 See [FEATURES.md](docs/FEATURES.md) for the complete feature reference.
+> 📖 See [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for extending LocalLLM.
+
 ## 🚀 Quick Start
 
 ```powershell
