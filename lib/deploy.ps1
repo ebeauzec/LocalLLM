@@ -13,6 +13,18 @@ Ollama models, and waiting for the services to be healthy.
 
 $script:ProjectRoot = $PSScriptRoot | Split-Path -Parent
 
+function Get-ConfigValue {
+    <#
+    .SYNOPSIS
+        Safely access a property on an object with a fallback default.
+        Handles PSCustomObject from JSON deserialization where properties
+        may not exist and would throw with ErrorActionPreference=Stop.
+    #>
+    param($Obj, [string]$Prop, $Default)
+    try { $val = $Obj.$Prop; if ($null -ne $val) { return $val } } catch {}
+    return $Default
+}
+
 function New-LiteLLMKey {
     <#
     .SYNOPSIS
@@ -43,12 +55,6 @@ function New-DockerComposeFile {
         }
         
         $content = Get-Content -Path $templatePath -Raw
-        
-        # Safe config value accessor — PSCustomObject from JSON may not have all properties
-        function Get-ConfigValue($Obj, $Prop, $Default) {
-            try { $val = $Obj.$Prop; if ($null -ne $val) { return $val } } catch {}
-            return $Default
-        }
         
         # Replace basic variables with safe defaults
         $content = $content -replace '\{\{OLLAMA_PORT\}\}', (Get-ConfigValue $Config 'OllamaPort' 11434)
