@@ -56,13 +56,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Card Click -> Open WebUI
+    // Card Click -> Ensure auth then navigate to Open WebUI chat
     cards.forEach(card => {
-        card.addEventListener('click', () => {
-            // Can pass model via URL param if Open WebUI supports it, e.g., ?models=xxx
+        card.addEventListener('click', async () => {
+            // Ensure we're authenticated before navigating
+            if (typeof autoLogin === 'function') {
+                await autoLogin();
+            }
             window.location.href = '/chat';
         });
     });
+
+    // Helper: navigate to chat with auth
+    async function goToChat() {
+        if (typeof autoLogin === 'function') await autoLogin();
+        window.location.href = '/chat';
+    }
+
+    // New Chat & Upload Doc buttons
+    document.getElementById('btnNewChat').addEventListener('click', goToChat);
+    document.getElementById('btnUploadDoc').addEventListener('click', goToChat);
 
     // Quick Prompts Modal
     const modal = document.getElementById('promptsModal');
