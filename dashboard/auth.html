@@ -85,13 +85,8 @@ function log(msg, cls) {
         log('Verify: ' + v.status, v.ok ? 'ok' : 'err');
 
         if (v.ok) {
-            log('SUCCESS — auth is working!', 'ok');
-            log('');
-            var link = document.createElement('a');
-            link.href = '/chat';
-            link.textContent = '→ Click here to go to Chat';
-            link.style.cssText = 'color:#6366f1;font-size:16px;display:block;margin-top:16px;text-align:center;';
-            logEl.appendChild(link);
+            log('SUCCESS — redirecting...', 'ok');
+            setTimeout(function() { window.location.replace('/'); }, 500);
         } else {
             log('Auth verification failed.', 'err');
             log('The cookie may not be stored properly.', 'warn');
