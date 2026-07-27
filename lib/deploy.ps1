@@ -70,6 +70,10 @@ function New-DockerComposeFile {
         $litellmB64 = Get-ConfigValue $Config 'LiteLLMConfigB64' ''
         $content = $content -replace '\{\{LITELLM_CONFIG_B64\}\}', $litellmB64
         
+        # SearXNG settings as base64 for init container
+        $searxngB64 = Get-ConfigValue $Config 'SearXNGSettingsB64' ''
+        $content = $content -replace '\{\{SEARXNG_SETTINGS_B64\}\}', $searxngB64
+        
         # Accelerator Config Section
         $accelConfig = Get-ConfigValue $Config 'AcceleratorConfig' $null
         if (-not $accelConfig) {
@@ -344,6 +348,10 @@ function New-SearXNGConfig {
             $hex = [System.BitConverter]::ToString($bytes) -replace '-'
             $content = $content -replace '\{\{SEARXNG_SECRET\}\}', $hex
             $content | Out-File -FilePath $settingsOut -Encoding UTF8
+            
+            # Store base64 for compose template injection (bind mounts fail on virtual FS)
+            $contentBytes = [System.Text.Encoding]::UTF8.GetBytes($content)
+            $Config | Add-Member -NotePropertyName 'SearXNGSettingsB64' -NotePropertyValue ([Convert]::ToBase64String($contentBytes)) -Force
         }
         
         $limiterTmpl = Join-Path $script:ProjectRoot "templates\searxng\limiter.toml.tmpl"
@@ -564,9 +572,6 @@ function Start-Deployment {
         }
         
         New-LiteLLMConfig -Config $Config
-        New-DockerComposeFile -Config $Config
-        New-EnvironmentFile -Config $Config
-        New-TikaConfig
         
         $features = Get-ConfigValue $Config 'Features' $null
         $hasWebSearch = $false
@@ -574,6 +579,9 @@ function Start-Deployment {
         if ($hasWebSearch) {
             New-SearXNGConfig -Config $Config
         }
+        
+        New-DockerComposeFile -Config $Config
+        New-EnvironmentFile -Config $Config
         
         Start-DockerCompose
         Wait-ForServices -Config $Config -TimeoutSeconds 120

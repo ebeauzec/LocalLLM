@@ -80,7 +80,7 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:4000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer '$$LITELLM_MASTER_KEY http://localhost:4000/health/readiness || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -201,16 +201,31 @@ services:
   # Search queries are proxied — your IP is hidden from search engines.
   # ──────────────────────────────────────────────────────────────────────────
   {{SEARXNG_SECTION_START}}
+  searxng-init:
+    image: alpine:latest
+    container_name: localllm-searxng-init
+    volumes:
+      - searxng-config:/config
+    environment:
+      - SEARXNG_SETTINGS_B64={{SEARXNG_SETTINGS_B64}}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "echo $$SEARXNG_SETTINGS_B64 | base64 -d > /config/settings.yml && echo 'SearXNG config written'"
+    networks:
+      - localllm-network
+
   searxng:
     image: searxng/searxng:latest
     container_name: localllm-searxng
     ports:
       - "{{SEARXNG_PORT}}:8080"
     volumes:
-      - "{{CONFIG_PATH}}/searxng/settings.yml:/etc/searxng/settings.yml:ro"
-      - "{{CONFIG_PATH}}/searxng/limiter.toml:/etc/searxng/limiter.toml:ro"
+      - searxng-config:/etc/searxng:rw
     environment:
       - SEARXNG_BASE_URL=http://localhost:{{SEARXNG_PORT}}/
+    depends_on:
+      searxng-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     cap_drop:
       - ALL
@@ -240,3 +255,5 @@ networks:
 volumes:
   litellm-config:
     name: localllm-litellm-config
+  searxng-config:
+    name: localllm-searxng-config
