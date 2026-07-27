@@ -87,36 +87,52 @@ LocalLLM is a one-command installer that gives you a local AI assistant comparab
 
 ## 🚀 Quick Start
 
-### Windows (PowerShell)
+### 1. Clone & Run (One Command)
+
+**Windows:**
 ```powershell
 git clone https://github.com/ebeauzec/LocalLLM.git
 cd LocalLLM
-.\install.ps1
+.\start.ps1
 ```
 
-### macOS / Linux (Bash)
+**macOS / Linux:**
 ```bash
 git clone https://github.com/ebeauzec/LocalLLM.git
 cd LocalLLM
-chmod +x install.sh
-./install.sh
+chmod +x start.sh && ./start.sh
 ```
 
-### Unattended / Headless (No Interactive Prompts)
+That's it. The launcher auto-detects if it's your first time (runs installer) or a return visit (starts services and opens your browser).
+
+### 2. Daily Usage
+
+| Action | Windows | macOS / Linux |
+|:---|:---|:---|
+| **Start** (opens browser) | `.\start.ps1` | `./start.sh` |
+| **Stop** (free resources) | `.\start.ps1 -Stop` | `./start.sh --stop` |
+| **Check status** | `.\start.ps1 -Status` | `./start.sh --status` |
+| **View savings** | `.\start.ps1 -Analytics` | `./start.sh --analytics` |
+
+### 3. Persistence — Everything Stays
+
+Your AI remembers everything between sessions:
+- ✅ **Conversations** — Full chat history in SQLite (data/open-webui/)
+- ✅ **Uploaded documents** — Stay in your knowledge base (data/uploads/)
+- ✅ **AI model weights** — Cached locally (data/ollama/)
+- ✅ **Settings & preferences** — User accounts, themes, tool configs
+- ✅ **RAG vector store** — Document embeddings persist
+- ✅ **Analytics & audit logs** — Cost savings data accumulates
+
+Just run `start.ps1` / `start.sh` and pick up exactly where you left off.
+
+### Advanced Installation
 ```bash
-# Edit config, then install without prompts
+# Unattended / headless (CI/CD, fleet deployment)
 cp install-config.json my-config.json
 # Edit my-config.json with your preferences...
 ./install.sh --unattended --config my-config.json    # Linux/macOS
 .\install.ps1 -Unattended -ConfigFile my-config.json  # Windows
-```
-
-### Daily Usage
-```bash
-./localllm.sh start     # Start + auto-open browser
-# ... use your AI assistant ...
-./localllm.sh stop      # Graceful shutdown, returns all resources
-./localllm.sh start     # Resume with full memory — picks up where you left off
 ```
 
 ## 💻 System Requirements

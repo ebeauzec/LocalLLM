@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.1] - 2026-07-27
+
+### Added — One-Click Launcher & Persistence
+- **start.ps1**: One-click Windows launcher — auto-detects first run (install) vs subsequent (start)
+- **start.sh**: One-click macOS/Linux launcher with browser auto-open
+- Smart detection: Already running? Just opens the browser. Not installed? Runs full installer.
+- Persistence clearly documented: conversations, uploads, models, settings, RAG, analytics all survive restarts
+- Quick action flags: `-Stop`, `-Status`, `-Analytics`, `--stop`, `--status`, `--analytics`
+
+### Changed
+- README Quick Start: Now leads with `start.ps1`/`start.sh` as the primary entry point
+- README: Added persistence section explaining exactly what persists between sessions
+- VERSION bumped to 0.5.1
+
 ## [v0.5.0] - 2026-07-27
 
 ### Added — Document Intelligence & Privacy Pipeline
