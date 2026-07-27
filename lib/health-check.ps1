@@ -31,7 +31,7 @@ function Test-ContainerHealth {
             return @{ Name="Container Health"; Status="Warning"; Message="docker-compose.yml not found"; AutoFixAvailable=$false }
         }
         
-        $containers = docker compose -f $composePath ps --format json 2>$null | ConvertFrom-Json
+        $containers = docker compose -f $composePath --project-directory $script:ProjectRoot ps --format json 2>$null | ConvertFrom-Json
         $failed = @()
         foreach ($c in $containers) {
             if ($c.State -ne "running") {
@@ -150,7 +150,7 @@ function Repair-Service {
             "Container Health" {
                 $composePath = Join-Path $script:ProjectRoot "config\docker-compose.yml"
                 Push-Location $script:ProjectRoot
-                docker compose -f $composePath up -d
+                docker compose -f $composePath --project-directory $script:ProjectRoot up -d
                 Pop-Location
                 $FailedTest.AutoFixResult = "Ran docker compose up"
             }

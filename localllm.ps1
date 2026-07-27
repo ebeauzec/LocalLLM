@@ -52,6 +52,10 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 $script:LibPath = Join-Path $PSScriptRoot "lib"
 $script:EnvFile = Join-Path $PSScriptRoot "config" ".env"
+$script:ProjectRoot = $PSScriptRoot
+
+# Ensure Docker resolves all relative paths from this directory
+$env:COMPOSE_PROJECT_NAME = 'localllm'
 
 # Load utils if available
 $utilsPath = Join-Path $script:LibPath "utils.ps1"
@@ -84,6 +88,20 @@ function Get-ComposeFile {
         exit 1
     }
     return $composePath
+}
+
+function Invoke-DockerCompose {
+    <#
+    .SYNOPSIS
+    Runs docker compose with --project-directory locked to the project root.
+    This ensures ALL relative paths (volumes, configs) resolve from the
+    deployment folder, not the user's current working directory.
+    #>
+    param([string[]]$Arguments)
+    $composePath = Get-ComposeFile
+    $allArgs = @('compose', '-f', $composePath, '--project-directory', $script:ProjectRoot) + $Arguments
+    & docker @allArgs
+    return $LASTEXITCODE
 }
 
 function Get-InstallConfig {
@@ -197,7 +215,7 @@ function Invoke-Start {
         }
     }
 
-    docker compose -f $composePath up -d
+    Invoke-DockerCompose up -d
     
     $port = $config.WEBUI_PORT ?? '3000'
     Write-Host "  Waiting for Open WebUI to be healthy..." -ForegroundColor Gray
@@ -237,10 +255,10 @@ function Invoke-Stop {
     Write-Host "  Current Resource Usage:" -ForegroundColor Cyan
     try { docker stats --no-stream } catch { }
     
-    $containersCount = (docker compose -f $composePath ps -q).Count
+    $containersCount = (Invoke-DockerCompose ps -q).Count
 
-    docker compose -f $composePath stop
-    docker compose -f $composePath down
+    Invoke-DockerCompose stop
+    Invoke-DockerCompose down
     
     Write-Host ""
     Write-Host "  ✅ All resources returned to system" -ForegroundColor Green
@@ -259,7 +277,7 @@ function Invoke-Restart {
     $composePath = Get-ComposeFile
 
     Write-Host "  Restarting LocalLLM services..." -ForegroundColor Cyan
-    docker compose -f $composePath restart
+    Invoke-DockerCompose restart
     Write-Host ""
     Write-Host "  ✅ Services restarted." -ForegroundColor Green
     Write-Host ""
@@ -279,7 +297,7 @@ function Invoke-Status {
     Write-Host ""
 
     # Container status
-    docker compose -f $composePath ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    Invoke-DockerCompose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
     Write-Host ""
 
@@ -411,12 +429,12 @@ function Invoke-Update {
 
     # Pull latest images
     Write-Host "  📦 Pulling latest Docker images..." -ForegroundColor Gray
-    docker compose -f $composePath pull
+    Invoke-DockerCompose pull
 
     # Recreate containers with new images
     Write-Host ""
     Write-Host "  🔄 Restarting services with updated images..." -ForegroundColor Gray
-    docker compose -f $composePath up -d
+    Invoke-DockerCompose up -d
 
     # Update models
     Write-Host ""
@@ -457,9 +475,9 @@ function Invoke-Logs {
     Write-Host ""
 
     if ($service) {
-        docker compose -f $composePath logs --tail 100 -f $service
+        Invoke-DockerCompose logs --tail 100 -f $service
     } else {
-        docker compose -f $composePath logs --tail 50 -f
+        Invoke-DockerCompose logs --tail 50 -f
     }
 }
 
@@ -660,16 +678,15 @@ function Invoke-Uninstall {
     Write-Host ""
     Write-Host "  Removing LocalLLM..." -ForegroundColor Yellow
 
-    $composePath = Join-Path $PSScriptRoot "config" "docker-compose.yml"
-
     # Stop and remove containers
+    $composePath = Join-Path $PSScriptRoot "config" "docker-compose.yml"
     if (Test-Path $composePath) {
         Write-Host "  Stopping containers..." -ForegroundColor Gray
-        docker compose -f $composePath down --remove-orphans 2>&1 | Out-Null
+        Invoke-DockerCompose down --remove-orphans 2>&1 | Out-Null
 
         if ($removeModels -eq 'y' -or $removeModels -eq 'Y') {
             Write-Host "  Removing Docker volumes (models + data)..." -ForegroundColor Gray
-            docker compose -f $composePath down -v 2>&1 | Out-Null
+            Invoke-DockerCompose down -v 2>&1 | Out-Null
         }
     }
 

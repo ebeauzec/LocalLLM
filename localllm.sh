@@ -26,6 +26,11 @@ else
     exit 1
 fi
 
+# Lock all paths to the project directory (not the user's CWD)
+COMPOSE_FILE="$SCRIPT_DIR/config/docker-compose.yml"
+export COMPOSE_PROJECT_NAME="localllm"
+DOCKER_COMPOSE="$DOCKER_COMPOSE -f $COMPOSE_FILE --project-directory $SCRIPT_DIR"
+
 show_help() {
     echo -e "${CYAN}LocalLLM Management CLI${NC}"
     echo "Usage: ./localllm.sh <command> [options]"

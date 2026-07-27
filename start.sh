@@ -109,7 +109,7 @@ echo -e "${GREEN}  ✅ LocalLLM is installed. Starting services...${NC}"
 echo ""
 
 # Check if already running
-if docker compose -f "$COMPOSE_FILE" ps -q 2>/dev/null | grep -q .; then
+if docker compose -f "$COMPOSE_FILE" --project-directory "$SCRIPT_DIR" ps -q 2>/dev/null | grep -q .; then
     if curl -sf http://localhost:3000/health &>/dev/null; then
         echo -e "${GREEN}  🟢 Services are already running!${NC}"
         echo ""

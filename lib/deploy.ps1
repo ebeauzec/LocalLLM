@@ -246,7 +246,7 @@ function Start-DockerCompose {
         $composePath = Join-Path $configDir "docker-compose.yml"
         
         Push-Location $script:ProjectRoot
-        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" up -d" -Wait -NoNewWindow -PassThru
+        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" up -d" -Wait -NoNewWindow -PassThru
         Pop-Location
         
         if ($process.ExitCode -ne 0) {

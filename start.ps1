@@ -110,7 +110,7 @@ Write-Host ""
 # Check if services are already running
 $alreadyRunning = $false
 try {
-    $containers = docker compose -f $ComposeFile ps -q 2>$null
+    $containers = docker compose -f $ComposeFile --project-directory $ProjectRoot ps -q 2>$null
     if ($containers -and $containers.Count -gt 0) {
         # Check if WebUI is healthy
         try {

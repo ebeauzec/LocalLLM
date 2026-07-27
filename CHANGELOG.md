@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.2] - 2026-07-27
+
+### Fixed — Complete Deployment Folder Isolation
+- **All Docker Compose calls** now use `--project-directory` to lock volume resolution to the deployment folder
+- **localllm.ps1**: New `Invoke-DockerCompose` wrapper function guarantees `--project-directory $ProjectRoot` on every call
+- **localllm.sh**: `DOCKER_COMPOSE` variable now includes `-f $COMPOSE_FILE --project-directory $SCRIPT_DIR`
+- **deploy.ps1**: Compose launch uses `--project-directory` alongside `Push-Location`
+- **health-check.ps1**: Container health checks and auto-repair use project-directory-scoped compose calls
+- **start.ps1 / start.sh**: Running-detection compose calls scoped to project root
+- **COMPOSE_PROJECT_NAME**: Set to `localllm` to isolate Docker resources from other projects
+- All data (`data/`), config (`config/`), logs, metrics, and audit files remain within the deployment folder
+- Safe to run from any working directory — paths never leak outside the project
+
 ## [v0.5.1] - 2026-07-27
 
 ### Added — One-Click Launcher & Persistence
