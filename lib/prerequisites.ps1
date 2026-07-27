@@ -10,6 +10,8 @@ Checks for and installs necessary prerequisites like WSL2, Docker Desktop,
 NVIDIA Container Toolkit, and native Ollama if required.
 #>
 
+$script:ProjectRoot = $PSScriptRoot | Split-Path -Parent
+
 function Install-WSL2 {
     <#
     .SYNOPSIS
@@ -19,23 +21,21 @@ function Install-WSL2 {
     param()
     
     try {
-        Write-Section "Checking WSL2 Status"
+        Write-LogMessage "Checking WSL2 Status" -Level Step
         $wslStatus = wsl --status 2>&1
         if ($LASTEXITCODE -eq 0 -and $wslStatus -match "Default Version: 2") {
             Write-LogMessage -Message 'Found existing WSL2, skipping installation' -Level Info
-            Write-Host "WSL2 is already installed and set to default version 2." -ForegroundColor Green
-            return $true
+            return @{ Success=$true; RebootRequired=$false }
         }
         
-        Write-Host "Installing WSL2..." -ForegroundColor Cyan
-        Start-Process -FilePath "wsl.exe" -ArgumentList "--install" -Wait -NoNewWindow
+        Write-LogMessage "Installing WSL2..." -Level Info
+        $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--install --no-distribution" -Wait -NoNewWindow -PassThru
         
-        Write-Host "WSL2 installation initiated. A reboot may be required." -ForegroundColor Yellow
-        Write-LogMessage -Message 'WSL2 installation executed. Reboot may be needed.' -Level Warn
-        return $true
+        Write-LogMessage -Message 'WSL2 installation executed. Reboot may be needed.' -Level Warning
+        return @{ Success=$true; RebootRequired=$true }
     } catch {
         Write-LogMessage -Message "Failed to install WSL2: $_" -Level Error
-        return $false
+        return @{ Success=$false; RebootRequired=$false }
     }
 }
 
@@ -48,30 +48,50 @@ function Install-DockerDesktop {
     param()
 
     try {
-        Write-Section "Checking Docker Desktop"
+        Write-LogMessage "Checking Docker Desktop" -Level Step
         if (Get-Command docker -ErrorAction SilentlyContinue) {
             $dockerInfo = docker info 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-LogMessage -Message 'Found existing Docker running, skipping installation' -Level Info
-                Write-Host "Docker is already installed and running." -ForegroundColor Green
                 return $true
             } else {
-                Write-Host "Docker is installed but not running. Attempting to start..." -ForegroundColor Yellow
+                Write-LogMessage "Docker is installed but not running. Attempting to start..." -Level Warning
                 Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-                Start-Sleep -Seconds 15
-                return $true
+                
+                # Poll docker info
+                $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                Write-LogMessage "Waiting for Docker daemon to start..." -Level Info
+                while ($stopwatch.Elapsed.TotalSeconds -lt 120) {
+                    $dockerInfo = docker info 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-LogMessage "Docker daemon is ready." -Level Success
+                        return $true
+                    }
+                    Start-Sleep -Seconds 5
+                }
+                Write-LogMessage "Docker failed to start within timeout." -Level Error
+                return $false
             }
         }
 
-        Write-Host "Downloading Docker Desktop..." -ForegroundColor Cyan
+        Write-LogMessage "Downloading Docker Desktop..." -Level Info
         $installerPath = "$env:TEMP\Docker Desktop Installer.exe"
-        Invoke-WebRequest -Uri "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe" -OutFile $installerPath -UseBasicParsing
+        
+        # Show download progress natively
+        $progressPreference = 'Continue'
+        Invoke-WebRequest -Uri "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe" -OutFile $installerPath
+        $progressPreference = 'SilentlyContinue'
 
-        Write-Host "Installing Docker Desktop silently..." -ForegroundColor Cyan
-        Start-Process -FilePath $installerPath -ArgumentList "install --quiet --accept-license" -Wait -NoNewWindow
+        Write-LogMessage "Installing Docker Desktop silently..." -Level Info
+        $process = Start-Process -FilePath $installerPath -ArgumentList "install --quiet --accept-license" -Wait -NoNewWindow -PassThru
 
-        Write-Host "Docker Desktop installed successfully." -ForegroundColor Green
-        return $true
+        if ($process.ExitCode -eq 0) {
+            Write-LogMessage "Docker Desktop installed successfully." -Level Success
+            return $true
+        } else {
+            Write-LogMessage "Docker installation returned exit code $($process.ExitCode)." -Level Error
+            return $false
+        }
     } catch {
         Write-LogMessage -Message "Failed to install Docker Desktop: $_" -Level Error
         return $false
@@ -87,25 +107,23 @@ function Install-NvidiaContainerToolkit {
     param()
 
     try {
-        Write-Section "Checking NVIDIA Container Toolkit"
+        Write-LogMessage "Checking NVIDIA Container Toolkit" -Level Step
         $checkCmd = wsl -- nvidia-smi 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "NVIDIA GPU not detected in WSL, skipping toolkit installation." -ForegroundColor Yellow
+            Write-LogMessage "NVIDIA GPU not detected in WSL, skipping toolkit installation." -Level Warning
             return $true
         }
 
         $ctkCheck = wsl -- nvidia-ctk --version 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-LogMessage -Message 'Found existing nvidia-ctk, skipping installation' -Level Info
-            Write-Host "NVIDIA Container Toolkit already installed." -ForegroundColor Green
             return $true
         }
 
-        Write-Host "Installing NVIDIA Container Toolkit inside WSL..." -ForegroundColor Cyan
-        # Simplified instruction for demonstration
+        Write-LogMessage "Installing NVIDIA Container Toolkit inside WSL..." -Level Info
         wsl -u root -- bash -c "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list && sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit"
         
-        Write-Host "NVIDIA Container Toolkit installed successfully." -ForegroundColor Green
+        Write-LogMessage "NVIDIA Container Toolkit installed successfully." -Level Success
         return $true
     } catch {
         Write-LogMessage -Message "Failed to install NVIDIA Container Toolkit: $_" -Level Error
@@ -117,13 +135,13 @@ function Test-DockerGPUAccess {
     [CmdletBinding()]
     param()
     try {
-        Write-Host "Testing Docker GPU Access..." -ForegroundColor Cyan
+        Write-LogMessage "Testing Docker GPU Access..." -Level Step
         $res = docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "GPU Passthrough successful!" -ForegroundColor Green
+            Write-LogMessage "GPU Passthrough successful!" -Level Success
             return $true
         }
-        Write-Host "GPU Passthrough failed." -ForegroundColor Red
+        Write-LogMessage "GPU Passthrough failed." -Level Error
         return $false
     } catch {
         Write-LogMessage -Message "GPU access test error: $_" -Level Error
@@ -137,13 +155,16 @@ function Install-OllamaNative {
     try {
         if (Get-Command ollama -ErrorAction SilentlyContinue) {
             Write-LogMessage -Message 'Found existing Ollama, skipping installation' -Level Info
-            Write-Host "Ollama is already installed natively." -ForegroundColor Green
             return $true
         }
-        Write-Host "Downloading Ollama Native Installer..." -ForegroundColor Cyan
+        Write-LogMessage "Downloading Ollama Native Installer..." -Level Info
         $installer = "$env:TEMP\OllamaSetup.exe"
-        Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile $installer -UseBasicParsing
-        Write-Host "Installing Ollama silently..." -ForegroundColor Cyan
+        
+        $progressPreference = 'Continue'
+        Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile $installer
+        $progressPreference = 'SilentlyContinue'
+        
+        Write-LogMessage "Installing Ollama silently..." -Level Info
         Start-Process $installer -ArgumentList "/VERYSILENT" -Wait -NoNewWindow
         return $true
     } catch {
@@ -159,14 +180,43 @@ function Install-Prerequisites {
         [hashtable]$SystemProfile
     )
     
-    $success = $true
-    if (-not (Install-WSL2)) { $success = $false }
-    if (-not (Install-DockerDesktop)) { $success = $false }
+    $result = @{
+        Success = $true
+        RebootRequired = $false
+        InstalledComponents = @()
+        SkippedComponents = @()
+        FailedComponents = @()
+    }
+    
+    $wslResult = Install-WSL2
+    if ($wslResult.Success) {
+        $result.InstalledComponents += "WSL2"
+        if ($wslResult.RebootRequired) {
+            $result.RebootRequired = $true
+        }
+    } else {
+        $result.Success = $false
+        $result.FailedComponents += "WSL2"
+    }
+    
+    if (Install-DockerDesktop) {
+        $result.InstalledComponents += "Docker Desktop"
+    } else {
+        $result.Success = $false
+        $result.FailedComponents += "Docker Desktop"
+    }
     
     if ($SystemProfile.HasNvidiaGPU) {
-        if (-not (Install-NvidiaContainerToolkit)) { $success = $false }
-        Test-DockerGPUAccess | Out-Null
+        if (Install-NvidiaContainerToolkit) {
+            $result.InstalledComponents += "NVIDIA Container Toolkit"
+            Test-DockerGPUAccess | Out-Null
+        } else {
+            $result.Success = $false
+            $result.FailedComponents += "NVIDIA Container Toolkit"
+        }
+    } else {
+        $result.SkippedComponents += "NVIDIA Toolkit (no GPU detected)"
     }
 
-    return $success
+    return $result
 }

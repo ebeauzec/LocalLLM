@@ -5,152 +5,342 @@
 <#
 .SYNOPSIS
 Deployment module for LocalLLM.
+.DESCRIPTION
+This module handles reading templates, replacing variables based on configuration,
+generating output files in the config folder, starting docker compose, pulling
+Ollama models, and waiting for the services to be healthy.
 #>
 
+$script:ProjectRoot = $PSScriptRoot | Split-Path -Parent
+
+function New-LiteLLMKey {
+    <#
+    .SYNOPSIS
+    Generates a random LiteLLM API key.
+    #>
+    [CmdletBinding()]
+    param()
+    $bytes = New-Object byte[] 16
+    (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
+    $hex = [System.BitConverter]::ToString($bytes) -replace '-'
+    return "sk-localllm-$($hex.ToLower())"
+}
+
 function New-DockerComposeFile {
-    param([hashtable]$Config, [string]$Path)
+    <#
+    .SYNOPSIS
+    Generates docker-compose.yml from template.
+    #>
+    [CmdletBinding()]
+    param([hashtable]$Config)
+    
     try {
-        $gpuSection = ""
-        if ($Config.UseGPU) {
-            $gpuSection = @"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-"@
+        $templatePath = Join-Path $script:ProjectRoot "templates\docker-compose.yml.tmpl"
+        $outPath = Join-Path $script:ProjectRoot "config\docker-compose.yml"
+        
+        if (-not (Test-Path $templatePath)) {
+            throw "Template not found: $templatePath"
         }
-
-        $compose = @"
-version: '3.8'
-services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: localllm-ollama
-    ports:
-      - "$($Config.OllamaPort):11434"
-    volumes:
-      - ./data/ollama:/root/.ollama
-    restart: unless-stopped
-$gpuSection
-
-  litellm:
-    image: ghcr.io/berriai/litellm:main-latest
-    container_name: localllm-litellm
-    ports:
-      - "$($Config.LiteLLMPort):4000"
-    volumes:
-      - ./litellm_config.yaml:/app/config.yaml
-    command: [ "--config", "/app/config.yaml" ]
-    restart: unless-stopped
-
-  openwebui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: localllm-webui
-    ports:
-      - "$($Config.WebUIPort):8080"
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OPENAI_API_BASE_URL=http://litellm:4000
-    volumes:
-      - ./data/webui:/app/backend/data
-    restart: unless-stopped
-"@
-        $compose | Out-File -FilePath "$Path\docker-compose.yml" -Encoding UTF8
+        
+        $content = Get-Content -Path $templatePath -Raw
+        
+        # Replace basic variables
+        $content = $content -replace '\{\{OLLAMA_PORT\}\}', $Config.OllamaPort
+        $content = $content -replace '\{\{LITELLM_PORT\}\}', $Config.LiteLLMPort
+        $content = $content -replace '\{\{WEBUI_PORT\}\}', $Config.WebUIPort
+        $content = $content -replace '\{\{SEARXNG_PORT\}\}', ($Config.SearXNGPort ?? 8888)
+        $content = $content -replace '\{\{PIPELINES_PORT\}\}', 9099
+        $content = $content -replace '\{\{DATA_PATH\}\}', './data'
+        $content = $content -replace '\{\{CONFIG_PATH\}\}', './config'
+        
+        # GPU section
+        if ($Config.UseGPU) {
+            $content = $content -replace '\{\{GPU_SECTION_START\}\}', ''
+            $content = $content -replace '\{\{GPU_SECTION_END\}\}', ''
+        } else {
+            $content = $content -replace '(?s)\{\{GPU_SECTION_START\}\}.*?\{\{GPU_SECTION_END\}\}', ''
+        }
+        
+        # Web Search section
+        if ($Config.Features.WebSearch) {
+            $content = $content -replace '\{\{SEARXNG_SECTION_START\}\}', ''
+            $content = $content -replace '\{\{SEARXNG_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', "      - SEARXNG_API_URL=http://searxng:8080"
+        } else {
+            $content = $content -replace '(?s)\{\{SEARXNG_SECTION_START\}\}.*?\{\{SEARXNG_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{RAG_WEB_SEARCH_ENV\}\}', ''
+        }
+        
+        # ToolCalling section
+        if ($Config.Features.ToolCalling) {
+            $content = $content -replace '\{\{PIPELINES_SECTION_START\}\}', ''
+            $content = $content -replace '\{\{PIPELINES_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{PIPELINES_ENV\}\}', "      - PIPELINES_URL=http://pipelines:9099"
+        } else {
+            $content = $content -replace '(?s)\{\{PIPELINES_SECTION_START\}\}.*?\{\{PIPELINES_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{PIPELINES_ENV\}\}', ''
+        }
+        
+        # Cloud Keys Env
+        $cloudKeysStr = ""
+        if ($Config.CloudKeys) {
+            foreach ($key in $Config.CloudKeys.Keys) {
+                $cloudKeysStr += "`n      - $key=$($Config.CloudKeys[$key])"
+            }
+        }
+        $content = $content -replace '\{\{CLOUD_KEYS_ENV\}\}', $cloudKeysStr
+        
+        # Ensure config dir exists
+        $configDir = Split-Path $outPath
+        if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir | Out-Null }
+        
+        $content | Out-File -FilePath $outPath -Encoding UTF8
+        Write-LogMessage "Generated docker-compose.yml" -Level Success
     } catch {
-        Write-LogMessage "Error creating compose file: $_" -Level Error
+        Write-LogMessage "Error creating docker-compose file: $_" -Level Error
+        throw
     }
 }
 
 function New-LiteLLMConfig {
-    param([hashtable]$Config, [string]$Path)
+    [CmdletBinding()]
+    param([hashtable]$Config)
+    
     try {
-        $yaml = @"
-model_list:
-  - model_name: ollama-default
+        $templatePath = Join-Path $script:ProjectRoot "templates\litellm_config.yaml.tmpl"
+        $outPath = Join-Path $script:ProjectRoot "config\litellm_config.yaml"
+        
+        if (-not (Test-Path $templatePath)) {
+            Write-LogMessage "litellm_config.yaml.tmpl missing, using basic structure." -Level Warning
+            $content = "model_list:`n{{LOCAL_MODELS_SECTION}}`n{{CLOUD_MODELS_SECTION}}`n{{FALLBACK_RULES_SECTION}}"
+        } else {
+            $content = Get-Content -Path $templatePath -Raw
+        }
+        
+        # Local models
+        $localModels = ""
+        foreach ($model in $Config.SelectedModels) {
+            $modelName = if ($model -is [string]) { $model } else { $model.Name }
+            $localModels += @"
+  - model_name: $modelName
     litellm_params:
-      model: ollama/llama3
+      model: ollama/$modelName
       api_base: http://ollama:11434
-"@
-        $yaml | Out-File -FilePath "$Path\litellm_config.yaml" -Encoding UTF8
+"@ + "`n"
+        }
+        
+        # Cloud models
+        $cloudModels = ""
+        if ($Config.CloudKeys) {
+            if ($Config.CloudKeys.Contains('OPENAI_API_KEY')) {
+                $cloudModels += @"
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+"@ + "`n"
+            }
+            if ($Config.CloudKeys.Contains('ANTHROPIC_API_KEY')) {
+                $cloudModels += @"
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20240620
+"@ + "`n"
+            }
+        }
+        
+        $content = $content -replace '\{\{LOCAL_MODELS_SECTION\}\}', $localModels.TrimEnd()
+        $content = $content -replace '\{\{CLOUD_MODELS_SECTION\}\}', $cloudModels.TrimEnd()
+        
+        # Fallback rules dummy
+        $fallback = ""
+        $content = $content -replace '\{\{FALLBACK_RULES_SECTION\}\}', $fallback
+        
+        $content | Out-File -FilePath $outPath -Encoding UTF8
+        Write-LogMessage "Generated litellm_config.yaml" -Level Success
     } catch {
         Write-LogMessage "Error creating LiteLLM config: $_" -Level Error
+        throw
     }
 }
 
 function New-EnvironmentFile {
-    param([hashtable]$Config, [string]$Path)
+    [CmdletBinding()]
+    param([hashtable]$Config)
+    
     try {
-        $env = @"
-OLLAMA_PORT=$($Config.OllamaPort)
-WEBUI_PORT=$($Config.WebUIPort)
-LITELLM_PORT=$($Config.LiteLLMPort)
-"@
-        $env | Out-File -FilePath "$Path\.env" -Encoding UTF8
+        $templatePath = Join-Path $script:ProjectRoot "templates\.env.tmpl"
+        $outPath = Join-Path $script:ProjectRoot "config\.env"
+        
+        if (-not (Test-Path $templatePath)) {
+            $content = "LITELLM_MASTER_KEY={{LITELLM_KEY}}`nMULTI_USER={{MULTI_USER}}"
+        } else {
+            $content = Get-Content -Path $templatePath -Raw
+        }
+        
+        $liteLLMKey = New-LiteLLMKey
+        $Config.LiteLLMKey = $liteLLMKey
+        
+        $multiUser = if ($Config.Features.MultiUser) { "True" } else { "False" }
+        
+        $content = $content -replace '\{\{LITELLM_KEY\}\}', $liteLLMKey
+        $content = $content -replace '\{\{MULTI_USER\}\}', $multiUser
+        
+        $content | Out-File -FilePath $outPath -Encoding UTF8
+        Write-LogMessage "Generated .env file" -Level Success
     } catch {
         Write-LogMessage "Error creating env file: $_" -Level Error
+        throw
     }
 }
 
 function New-SearXNGConfig {
-    param([hashtable]$Config, [string]$Path)
-    # Placeholder for SearXNG logic
+    [CmdletBinding()]
+    param([hashtable]$Config)
+    
+    try {
+        $searxngConfigDir = Join-Path $script:ProjectRoot "config\searxng"
+        if (-not (Test-Path $searxngConfigDir)) { New-Item -ItemType Directory -Path $searxngConfigDir | Out-Null }
+        
+        $settingsTmpl = Join-Path $script:ProjectRoot "templates\searxng\settings.yml.tmpl"
+        $settingsOut = Join-Path $searxngConfigDir "settings.yml"
+        if (Test-Path $settingsTmpl) {
+            $content = Get-Content -Path $settingsTmpl -Raw
+            $bytes = New-Object byte[] 16
+            (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
+            $hex = [System.BitConverter]::ToString($bytes) -replace '-'
+            $content = $content -replace '\{\{SEARXNG_SECRET\}\}', $hex
+            $content | Out-File -FilePath $settingsOut -Encoding UTF8
+        }
+        
+        $limiterTmpl = Join-Path $script:ProjectRoot "templates\searxng\limiter.toml.tmpl"
+        $limiterOut = Join-Path $searxngConfigDir "limiter.toml"
+        if (Test-Path $limiterTmpl) {
+            Copy-Item -Path $limiterTmpl -Destination $limiterOut -Force
+        }
+        
+        Write-LogMessage "Generated SearXNG configuration" -Level Success
+    } catch {
+        Write-LogMessage "Error creating SearXNG config: $_" -Level Error
+        throw
+    }
 }
 
 function Start-DockerCompose {
-    param([string]$Path)
+    [CmdletBinding()]
+    param()
+    
     try {
-        Write-Host "Starting Docker Compose services..." -ForegroundColor Cyan
-        Push-Location $Path
-        docker compose up -d
+        Write-LogMessage "Starting Docker Compose services..." -Level Step
+        $configDir = Join-Path $script:ProjectRoot "config"
+        $composePath = Join-Path $configDir "docker-compose.yml"
+        
+        Push-Location $script:ProjectRoot
+        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" up -d" -Wait -NoNewWindow -PassThru
         Pop-Location
+        
+        if ($process.ExitCode -ne 0) {
+            throw "Docker compose failed with exit code $($process.ExitCode)"
+        }
+        Write-LogMessage "Docker Compose started successfully." -Level Success
     } catch {
         Write-LogMessage "Failed to start docker compose: $_" -Level Error
+        throw
     }
 }
 
 function Install-OllamaModels {
+    [CmdletBinding()]
     param([hashtable]$Config)
+    
     try {
-        Write-Host "Pulling models..." -ForegroundColor Cyan
+        Write-LogMessage "Pulling selected models..." -Level Step
         foreach ($model in $Config.SelectedModels) {
-            docker exec localllm-ollama ollama pull $model
+            $modelName = if ($model -is [string]) { $model } else { $model.Name }
+            Write-Host "Pulling model: $modelName" -ForegroundColor Cyan
+            $process = Start-Process -FilePath "docker" -ArgumentList "exec localllm-ollama ollama pull $modelName" -Wait -NoNewWindow -PassThru
+            if ($process.ExitCode -ne 0) {
+                Write-LogMessage "Failed to pull model $modelName" -Level Warning
+            } else {
+                Write-LogMessage "Model $modelName pulled successfully." -Level Success
+            }
         }
     } catch {
         Write-LogMessage "Failed to pull models: $_" -Level Error
+        throw
     }
 }
 
 function Wait-ForServices {
+    [CmdletBinding()]
+    param([hashtable]$Config, [int]$TimeoutSeconds = 120)
+    
     try {
-        Write-Host "Waiting for services to become ready..." -ForegroundColor Cyan
-        Start-Sleep -Seconds 10
-    } catch {}
+        Write-LogMessage "Waiting for services to become ready (Timeout: ${TimeoutSeconds}s)..." -Level Step
+        
+        $ollamaUrl = "http://localhost:$($Config.OllamaPort)/"
+        $litellmUrl = "http://localhost:$($Config.LiteLLMPort)/health"
+        $webuiUrl = "http://localhost:$($Config.WebUIPort)/"
+        
+        $services = @{
+            "Ollama" = $ollamaUrl
+            "LiteLLM" = $litellmUrl
+            "OpenWebUI" = $webuiUrl
+        }
+        
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        
+        foreach ($service in $services.Keys) {
+            $url = $services[$service]
+            $isReady = $false
+            
+            while ($stopwatch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+                try {
+                    $response = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 3 -ErrorAction Stop
+                    $isReady = $true
+                    Write-LogMessage "$service is ready." -Level Success
+                    break
+                } catch {
+                    Start-Sleep -Seconds 3
+                }
+            }
+            
+            if (-not $isReady) {
+                throw "$service failed to start within timeout."
+            }
+        }
+        
+        Write-LogMessage "All services are up and running." -Level Success
+    } catch {
+        Write-LogMessage "Service wait error: $_" -Level Error
+        throw
+    }
 }
 
 function Start-Deployment {
     [CmdletBinding()]
-    param(
-        [hashtable]$Config
-    )
+    param([hashtable]$Config)
+    
     try {
-        $installPath = $Config.InstallPath
-        if (-not (Test-Path $installPath)) {
-            New-Item -ItemType Directory -Path $installPath | Out-Null
+        Write-LogMessage "Starting Deployment" -Level Step
+        
+        $configDir = Join-Path $script:ProjectRoot "config"
+        if (-not (Test-Path $configDir)) {
+            New-Item -ItemType Directory -Path $configDir | Out-Null
         }
         
-        New-DockerComposeFile -Config $Config -Path $installPath
-        New-LiteLLMConfig -Config $Config -Path $installPath
-        New-EnvironmentFile -Config $Config -Path $installPath
+        New-DockerComposeFile -Config $Config
+        New-LiteLLMConfig -Config $Config
+        New-EnvironmentFile -Config $Config
         
         if ($Config.Features.WebSearch) {
-            New-SearXNGConfig -Config $Config -Path $installPath
+            New-SearXNGConfig -Config $Config
         }
-
-        Start-DockerCompose -Path $installPath
-        Wait-ForServices
+        
+        Start-DockerCompose
+        Wait-ForServices -Config $Config -TimeoutSeconds 120
+        Install-OllamaModels -Config $Config
+        
+        Write-LogMessage "Deployment completed successfully!" -Level Success
     } catch {
         Write-LogMessage "Deployment failed: $_" -Level Error
         throw
