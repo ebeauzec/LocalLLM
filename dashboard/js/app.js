@@ -56,15 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Card Click -> Open WebUI chat (trusted header auth handles login)
+    // Card Click -> Route through /auth for auto-login
     cards.forEach(card => {
         card.addEventListener('click', () => {
-            window.location.href = '/chat';
+            window.location.href = '/auth';
         });
     });
 
-    // Helper: navigate to chat
-    function goToChat() { window.location.href = '/chat'; }
+    // Helper: navigate to chat via auth
+    function goToChat() { window.location.href = '/auth'; }
 
     // New Chat & Upload Doc buttons
     document.getElementById('btnNewChat').addEventListener('click', goToChat);
