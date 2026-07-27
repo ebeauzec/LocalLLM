@@ -330,4 +330,3 @@ function Show-SystemReport {
     }
     Write-Host ""
 }
-Export-ModuleMember -Function *

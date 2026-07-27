@@ -256,4 +256,3 @@ function Show-ModelSelection {
     }
     # Just displaying, interactivity handled by caller usually
 }
-Export-ModuleMember -Function *

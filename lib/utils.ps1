@@ -287,4 +287,3 @@ function Show-CompletionBox {
     Write-Host "$border`n" -ForegroundColor Green
     Write-LogMessage -Message "COMPLETED: $Message" -Level Success
 }
-Export-ModuleMember -Function *
