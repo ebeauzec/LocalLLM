@@ -77,14 +77,43 @@ function New-DockerComposeFile {
         # Accelerator Config Section
         $accelConfig = Get-ConfigValue $Config 'AcceleratorConfig' $null
         if (-not $accelConfig) {
-            # Fallback if not provided
+            # Auto-detect hardware at deploy time if installer didn't provide config
+            Write-LogMessage -Message "No AcceleratorConfig found — auto-detecting hardware..." -Level "INFO"
+            
+            $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+            $cpuCores = $cpu.NumberOfCores
+            $cpuThreads = $cpu.NumberOfLogicalProcessors
+            $mem = Get-CimInstance Win32_OperatingSystem
+            $ramGB = [math]::Round($mem.TotalVisibleMemorySize / 1MB, 0)
+            
             $accelConfig = @{
                 OllamaImage = 'ollama/ollama:latest'
-                OllamaEnvVars = @{ OLLAMA_NUM_THREADS = 4 }
+                OllamaEnvVars = @{
+                    OLLAMA_NUM_THREADS = $cpuCores
+                    OLLAMA_FLASH_ATTENTION = '1'
+                    OLLAMA_KEEP_ALIVE = '24h'
+                    OLLAMA_NUM_PARALLEL = [math]::Min(4, [math]::Max(1, [math]::Floor($cpuCores / 4)))
+                    OLLAMA_MAX_LOADED_MODELS = [math]::Min(4, [math]::Max(1, [math]::Floor($ramGB / 16)))
+                    OLLAMA_HOST = '0.0.0.0:11434'
+                }
                 DockerDevices = @()
                 DockerGPUDeploy = $null
             }
-            if (Get-ConfigValue $Config 'UseGPU' $false) {
+            
+            # KV cache optimization for high-memory systems
+            if ($ramGB -ge 64) {
+                $accelConfig.OllamaEnvVars['OLLAMA_KV_CACHE_TYPE'] = 'q8_0'
+            } elseif ($ramGB -ge 32) {
+                $accelConfig.OllamaEnvVars['OLLAMA_KV_CACHE_TYPE'] = 'q4_0'
+            }
+            
+            # Detect GPU
+            $gpus = Get-CimInstance Win32_VideoController
+            $hasAMD = $gpus | Where-Object { $_.Name -match 'AMD|Radeon' }
+            $hasNvidia = $gpus | Where-Object { $_.Name -match 'NVIDIA|GeForce|RTX|GTX|Quadro' }
+            
+            if ($hasNvidia) {
+                Write-LogMessage -Message "NVIDIA GPU detected — enabling CUDA acceleration" -Level "INFO"
                 $accelConfig.DockerGPUDeploy = @"
     deploy:
       resources:
@@ -94,7 +123,18 @@ function New-DockerComposeFile {
               count: all
               capabilities: [gpu]
 "@
+            } elseif ($hasAMD) {
+                $gpuName = ($hasAMD | Select-Object -First 1).Name
+                Write-LogMessage -Message "AMD GPU detected ($gpuName) — enabling ROCm acceleration" -Level "INFO"
+                $accelConfig.OllamaImage = 'ollama/ollama:rocm'
+                $accelConfig.DockerDevices = @('/dev/kfd', '/dev/dri')
+                # Set HSA_OVERRIDE_GFX_VERSION for RDNA3/3.5 (Radeon 7000/8000 series)
+                if ($gpuName -match '8\d{3}|7[6-9]\d{2}') {
+                    $accelConfig.OllamaEnvVars['HSA_OVERRIDE_GFX_VERSION'] = '11.0.0'
+                }
             }
+            
+            Write-LogMessage -Message "CPU: $cpuCores cores / $cpuThreads threads, RAM: ${ramGB}GB, Image: $($accelConfig.OllamaImage)" -Level "INFO"
         }
         
         $content = $content -replace '\{\{OLLAMA_IMAGE\}\}', $accelConfig.OllamaImage

@@ -96,7 +96,8 @@ function Get-GPUInfo {
                 $vendor = "AMD" 
                 $hasAMD = $true
                 $rocm = $true
-                if ($vc.Name -match "8060S|7900|7800|7700|7600") { $arch = "RDNA3" }
+                if ($vc.Name -match "8060S|8050S|8040S") { $arch = "RDNA3.5" }
+                elseif ($vc.Name -match "7900|7800|7700|7600") { $arch = "RDNA3" }
                 elseif ($vc.Name -match "6900|6800|6700|6600") { $arch = "RDNA2" }
             }
             elseif ($vc.Name -match "Intel") { 
@@ -202,8 +203,8 @@ function Get-AcceleratorConfig {
         $config.DockerGPUMode = 'amd-rocm'
         $config.OllamaImage = 'ollama/ollama:rocm'
         $config.DockerDevices = @('/dev/kfd', '/dev/dri')
-        # Set HSA_OVERRIDE_GFX_VERSION for RDNA3 cards
-        if ($GPUInfo.PrimaryGPU.Architecture -eq 'RDNA3') {
+        # Set HSA_OVERRIDE_GFX_VERSION for RDNA3/RDNA3.5 cards
+        if ($GPUInfo.PrimaryGPU.Architecture -match 'RDNA3') {
             $config.OllamaEnvVars['HSA_OVERRIDE_GFX_VERSION'] = '11.0.0'
         }
     }
