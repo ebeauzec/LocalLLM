@@ -497,9 +497,10 @@ function Start-Installation {
         }
 
         # -------------------------------------------------------------------
-        # Completion
-        # -------------------------------------------------------------------
-        $webUIPort = if ($state.Configuration.WebUIPort) { $state.Configuration.WebUIPort } else { 3000 }
+        $webUIPort = 3000
+        try { if ($state.Configuration.WebUIPort) { $webUIPort = $state.Configuration.WebUIPort } } catch {}
+        $localURL = "http://localhost:${webUIPort}"
+        $esc = [char]27
 
         Write-Host ""
         Write-Host "  ╔══════════════════════════════════════════════════════════╗" -ForegroundColor Green
@@ -509,10 +510,11 @@ function Start-Installation {
         Write-Host "  ╠══════════════════════════════════════════════════════════╣" -ForegroundColor Green
         Write-Host "  ║                                                          ║" -ForegroundColor Green
         Write-Host "  ║   🌐 Open your AI assistant:                             ║" -ForegroundColor White
-        Write-Host "  ║      http://localhost:$webUIPort                             ║" -ForegroundColor Cyan
+        Write-Host "  ║      ${esc}]8;;${localURL}${esc}\${localURL}${esc}]8;;${esc}\" " -ForegroundColor Cyan -NoNewline
+        Write-Host "                        ║" -ForegroundColor Green
         Write-Host "  ║                                                          ║" -ForegroundColor Green
         Write-Host "  ║   📋 First-time setup:                                   ║" -ForegroundColor White
-        Write-Host "  ║      1. Open the URL above in your browser               ║" -ForegroundColor Gray
+        Write-Host "  ║      1. Browser will open automatically                  ║" -ForegroundColor Gray
         Write-Host "  ║      2. Create your admin account                        ║" -ForegroundColor Gray
         Write-Host "  ║      3. Start chatting with your local AI!               ║" -ForegroundColor Gray
         Write-Host "  ║                                                          ║" -ForegroundColor Green
@@ -528,12 +530,11 @@ function Start-Installation {
         Write-Host "  Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved." -ForegroundColor DarkGray
         Write-Host ""
 
-        # Open browser
+        # Auto-open browser
         if (-not $SkipBrowser) {
-            $openBrowser = Read-HostOrConfig -Prompt "  Open LocalLLM in your browser now? [Y/n]" -Default 'Y' -ConfigKey 'OpenBrowser'
-            if ($openBrowser -ne 'n' -and $openBrowser -ne 'N') {
-                Start-Process "http://localhost:$webUIPort"
-            }
+            Start-Process $localURL
+            Write-Host "  ✅ Browser opened automatically to $localURL" -ForegroundColor Green
+            Write-Host ""
         }
 
     } catch {

@@ -107,14 +107,34 @@ if (-not $isInstalled) {
 Write-Host "  ✅ LocalLLM is installed. Starting services..." -ForegroundColor Green
 Write-Host ""
 
+# Read port from config (fallback to 3000)
+$webUIPort = 3000
+try {
+    $stateFile = Join-Path $ProjectRoot '.localllm-install-state.json'
+    if (Test-Path $stateFile) {
+        $state = Get-Content $stateFile -Raw | ConvertFrom-Json
+        if ($state.Configuration.WebUIPort) { $webUIPort = $state.Configuration.WebUIPort }
+    }
+} catch {}
+$localURL = "http://localhost:${webUIPort}"
+
+# Helper: Write a clickable hyperlink using terminal escape sequences
+function Write-ClickableURL {
+    param([string]$URL, [string]$Label)
+    if (-not $Label) { $Label = $URL }
+    # OSC 8 hyperlink: supported by Windows Terminal, iTerm2, etc.
+    $esc = [char]27
+    Write-Host "  🌐 ${esc}]8;;${URL}${esc}\${Label}${esc}]8;;${esc}\" " -ForegroundColor Cyan -NoNewline
+    Write-Host "(click to open)" -ForegroundColor DarkGray
+}
+
 # Check if services are already running
 $alreadyRunning = $false
 try {
     $containers = docker compose -f $ComposeFile --project-directory $ProjectRoot ps -q 2>$null
     if ($containers -and $containers.Count -gt 0) {
-        # Check if WebUI is healthy
         try {
-            $null = Invoke-WebRequest -Uri "http://localhost:3000/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            $null = Invoke-WebRequest -Uri "$localURL/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             $alreadyRunning = $true
         } catch { }
     }
@@ -123,8 +143,12 @@ try {
 if ($alreadyRunning) {
     Write-Host "  🟢 Services are already running!" -ForegroundColor Green
     Write-Host ""
-    Start-Process "http://localhost:3000"
-    Write-Host "  🌐 Opened: http://localhost:3000" -ForegroundColor Cyan
+    Write-ClickableURL -URL $localURL
+    Write-Host ""
+    
+    # Auto-open browser
+    Start-Process $localURL
+    Write-Host "  ✅ Browser opened automatically." -ForegroundColor Green
     Write-Host ""
     Write-Host "  Your conversations, uploads, and settings are all here." -ForegroundColor Gray
     Write-Host "  To stop:       .\start.ps1 -Stop" -ForegroundColor DarkGray
@@ -141,6 +165,8 @@ Write-Host "  ╔═════════════════════
 Write-Host "  ║              LocalLLM is Ready!                     ║" -ForegroundColor Green
 Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
+Write-ClickableURL -URL $localURL
+Write-Host ""
 Write-Host "  📝 All your conversations persist between sessions." -ForegroundColor White
 Write-Host "  📁 Uploaded documents stay in your knowledge base." -ForegroundColor White
 Write-Host "  🧠 AI picks up exactly where you left off." -ForegroundColor White
@@ -150,4 +176,9 @@ Write-Host "    .\start.ps1              Start & open browser" -ForegroundColor 
 Write-Host "    .\start.ps1 -Stop        Graceful shutdown" -ForegroundColor Gray
 Write-Host "    .\start.ps1 -Status      Check service status" -ForegroundColor Gray
 Write-Host "    .\start.ps1 -Analytics   View cost savings" -ForegroundColor Gray
+Write-Host ""
+
+# Auto-open browser
+Start-Process $localURL
+Write-Host "  ✅ Browser opened automatically." -ForegroundColor Green
 Write-Host ""
