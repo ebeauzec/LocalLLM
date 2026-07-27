@@ -253,7 +253,9 @@ function New-DockerComposeFile {
         if (-not $liteLLMKey) { $liteLLMKey = New-LiteLLMKey; $Config.LiteLLMKey = $liteLLMKey }
         $hasMultiUser = $false
         try { $hasMultiUser = $features.MultiUser } catch {}
-        $multiUser = if ($hasMultiUser) { "True" } else { "False" }
+        # Always enable auth — installer creates an admin account, and WEBUI_AUTH=False
+        # causes an infinite signin loop if any user exists in the database
+        $multiUser = "True"
         $content = $content -replace '\{\{LITELLM_KEY\}\}', $liteLLMKey
         $content = $content -replace '\{\{MULTI_USER\}\}', $multiUser
         

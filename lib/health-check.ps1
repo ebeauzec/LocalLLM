@@ -199,19 +199,36 @@ function Show-HealthReport {
     
     $tableData = @()
     foreach ($r in $Results) {
-        $status = if ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
+        if ($null -eq $r) { continue }
+        $name = $null; $status = 'Unknown'; $message = ''; $autoFixAttempted = $false; $autoFixResult = 'N/A'
+        
+        if ($r -is [hashtable]) {
+            $name = $r['Name']; $status = $r['Status'] ?? 'Unknown'; $message = $r['Message'] ?? ''
+            $autoFixAttempted = $r['AutoFixAttempted'] ?? $false; $autoFixResult = $r['AutoFixResult'] ?? 'N/A'
+        } else {
+            $name = if ($r.PSObject.Properties['Name']) { $r.Name } else { $null }
+            $status = if ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
+            $message = if ($r.PSObject.Properties['Message']) { $r.Message } else { '' }
+            $autoFixAttempted = if ($r.PSObject.Properties['AutoFixAttempted']) { $r.AutoFixAttempted } else { $false }
+            $autoFixResult = if ($r.PSObject.Properties['AutoFixResult']) { $r.AutoFixResult } else { 'N/A' }
+        }
+        
+        if (-not $name) { continue }
+        
         $icon = if ($status -eq 'Pass') { '✅' } elseif ($status -eq 'Warning') { '⚠️' } else { '❌' }
-        $autoFixAttempted = if ($r.PSObject.Properties['AutoFixAttempted']) { $r.AutoFixAttempted } else { $false }
-        $autoFixResult = if ($r.PSObject.Properties['AutoFixResult']) { $r.AutoFixResult } else { 'N/A' }
         $tableData += [PSCustomObject]@{
             Status = "$icon $status"
-            Component = $r.Name
-            Details = $r.Message
+            Component = $name
+            Details = $message
             AutoFix = if ($autoFixAttempted) { $autoFixResult } else { 'N/A' }
         }
     }
     
-    $tableData | Format-Table -AutoSize
+    if ($tableData.Count -gt 0) {
+        $tableData | Format-Table -AutoSize
+    } else {
+        Write-Host "  No health check results to display." -ForegroundColor Yellow
+    }
 }
 
 function Invoke-HealthCheck {
@@ -219,43 +236,39 @@ function Invoke-HealthCheck {
     param()
     
     try {
-        $results = @()
-        $results += Test-DockerRunning
+        $results = [System.Collections.ArrayList]::new()
+        [void]$results.Add((Test-DockerRunning))
         
         # If docker isn't running, auto-fix it immediately before proceeding
         $dockerCheck = $results[0]
-        $dockerStatus = if ($dockerCheck.PSObject.Properties['Status']) { $dockerCheck.Status } else { 'Unknown' }
-        $dockerAutoFix = if ($dockerCheck.PSObject.Properties['AutoFixAvailable']) { $dockerCheck.AutoFixAvailable } else { $false }
+        $dockerStatus = if ($dockerCheck -is [hashtable]) { $dockerCheck['Status'] } else { $dockerCheck.Status }
+        $dockerAutoFix = if ($dockerCheck -is [hashtable]) { $dockerCheck['AutoFixAvailable'] } else { $dockerCheck.AutoFixAvailable }
+        
         if ($dockerStatus -ne "Pass" -and $dockerAutoFix) {
             Repair-Service -FailedTest $dockerCheck
-            # Re-test docker
             $dockerCheck2 = Test-DockerRunning
-            if (-not $dockerCheck2.PSObject.Properties['AutoFixAttempted']) {
-                $dockerCheck2 | Add-Member -NotePropertyName 'AutoFixAttempted' -NotePropertyValue $true -Force
-            } else {
-                $dockerCheck2.AutoFixAttempted = $true
-            }
-            if (-not $dockerCheck2.PSObject.Properties['AutoFixResult']) {
-                $dockerCheck2 | Add-Member -NotePropertyName 'AutoFixResult' -NotePropertyValue $dockerCheck.AutoFixResult -Force
-            } else {
-                $dockerCheck2.AutoFixResult = $dockerCheck.AutoFixResult
+            if ($dockerCheck2 -is [hashtable]) {
+                $dockerCheck2['AutoFixAttempted'] = $true
+                $dockerCheck2['AutoFixResult'] = if ($dockerCheck -is [hashtable]) { $dockerCheck['AutoFixResult'] } else { $null }
             }
             $results[0] = $dockerCheck2
         }
         
-        $results += Test-ContainerHealth
-        $results += Test-OllamaAPI
-        $results += Test-LiteLLMAPI
-        $results += Test-OpenWebUI
-        $results += Test-ModelLoaded
-        $results += Test-CloudFallback
-        $results += Test-DiskSpace
-        $results += Test-GPUAccess
+        [void]$results.Add((Test-ContainerHealth))
+        [void]$results.Add((Test-OllamaAPI))
+        [void]$results.Add((Test-LiteLLMAPI))
+        [void]$results.Add((Test-OpenWebUI))
+        [void]$results.Add((Test-ModelLoaded))
+        [void]$results.Add((Test-CloudFallback))
+        [void]$results.Add((Test-DiskSpace))
+        [void]$results.Add((Test-GPUAccess))
         
         foreach ($r in $results) {
-            $status = if ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
-            $autoFixAvailable = if ($r.PSObject.Properties['AutoFixAvailable']) { $r.AutoFixAvailable } else { $false }
-            $autoFixAttempted = if ($r.PSObject.Properties['AutoFixAttempted']) { $r.AutoFixAttempted } else { $false }
+            if ($null -eq $r) { continue }
+            $status = if ($r -is [hashtable]) { $r['Status'] } else { $r.Status }
+            $autoFixAvailable = if ($r -is [hashtable]) { $r['AutoFixAvailable'] } else { $r.AutoFixAvailable }
+            $autoFixAttempted = if ($r -is [hashtable]) { $r['AutoFixAttempted'] } else { $false }
+            
             if (($status -eq 'Fail' -or $status -eq 'Warning') -and $autoFixAvailable -and -not $autoFixAttempted) {
                 Repair-Service -FailedTest $r
             }
