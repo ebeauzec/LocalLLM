@@ -128,7 +128,7 @@ function Write-ClickableURL {
     $bsl = [char]92  # backslash
     $linkStart = "$esc]8;;${URL}$esc$bsl"
     $linkEnd   = "$esc]8;;$esc$bsl"
-    $line = "  $([char]0x1F310) ${linkStart}${Label}${linkEnd}"
+    $line = "  -> ${linkStart}${Label}${linkEnd}"
     Write-Host $line -ForegroundColor Cyan -NoNewline
     Write-Host " (click to open)" -ForegroundColor DarkGray
     # Also print plain URL for terminals that don't support OSC 8

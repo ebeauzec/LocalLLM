@@ -222,7 +222,8 @@ function New-LiteLLMConfig {
         
         # Local models
         $localModels = ""
-        foreach ($model in $Config.SelectedModels) {
+        $selectedModels = Get-ConfigValue $Config 'SelectedModels' @()
+        foreach ($model in $selectedModels) {
             $modelName = if ($model -is [string]) { $model } else { $model.Name }
             $localModels += @"
   - model_name: $modelName
@@ -234,15 +235,24 @@ function New-LiteLLMConfig {
         
         # Cloud models
         $cloudModels = ""
-        if ($Config.CloudKeys) {
-            if ($Config.CloudKeys.Contains('OPENAI_API_KEY')) {
+        $cloudKeys = Get-ConfigValue $Config 'CloudKeys' $null
+        if ($cloudKeys) {
+            $hasOpenAI = $false
+            $hasAnthropic = $false
+            try { $hasOpenAI = -not [string]::IsNullOrWhiteSpace($cloudKeys.OPENAI_API_KEY) } catch {}
+            try { $hasAnthropic = -not [string]::IsNullOrWhiteSpace($cloudKeys.ANTHROPIC_API_KEY) } catch {}
+            # Also check non-env-var key names (wizard may use 'OpenAI' not 'OPENAI_API_KEY')
+            try { if (-not $hasOpenAI) { $hasOpenAI = -not [string]::IsNullOrWhiteSpace($cloudKeys.OpenAI) } } catch {}
+            try { if (-not $hasAnthropic) { $hasAnthropic = -not [string]::IsNullOrWhiteSpace($cloudKeys.Anthropic) } } catch {}
+            
+            if ($hasOpenAI) {
                 $cloudModels += @"
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
 "@ + "`n"
             }
-            if ($Config.CloudKeys.Contains('ANTHROPIC_API_KEY')) {
+            if ($hasAnthropic) {
                 $cloudModels += @"
   - model_name: claude-3-5-sonnet
     litellm_params:
@@ -431,7 +441,8 @@ function Install-OllamaModels {
         Write-LogMessage "Pulling selected models..." -Level Step
         
         $modelsToPull = @()
-        foreach ($model in $Config.SelectedModels) {
+        $selectedModels = Get-ConfigValue $Config 'SelectedModels' @()
+        foreach ($model in $selectedModels) {
             $modelsToPull += if ($model -is [string]) { $model } else { $model.Name }
         }
         
@@ -463,9 +474,13 @@ function Wait-ForServices {
     try {
         Write-LogMessage "Waiting for services to become ready (Timeout: ${TimeoutSeconds}s)..." -Level Step
         
-        $ollamaUrl = "http://localhost:$($Config.OllamaPort)/"
-        $litellmUrl = "http://localhost:$($Config.LiteLLMPort)/health"
-        $webuiUrl = "http://localhost:$($Config.WebUIPort)/"
+        $ollamaPort = Get-ConfigValue $Config 'OllamaPort' 11434
+        $litellmPort = Get-ConfigValue $Config 'LiteLLMPort' 4000
+        $webuiPort = Get-ConfigValue $Config 'WebUIPort' 3000
+        
+        $ollamaUrl = "http://localhost:${ollamaPort}/"
+        $litellmUrl = "http://localhost:${litellmPort}/health"
+        $webuiUrl = "http://localhost:${webuiPort}/"
         
         $services = @{
             "Ollama" = $ollamaUrl
