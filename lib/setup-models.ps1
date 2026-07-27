@@ -49,9 +49,20 @@ function Install-CustomModels {
             return
         }
 
-        $baseModel = $Configuration.BaseModel
-        $reasoningModel = $Configuration.ReasoningModel
-        $codeModel = $Configuration.CodeModel
+        # Get model assignments with safe fallbacks
+        $selectedModels = @()
+        try { $selectedModels = @($Configuration.SelectedModels) } catch {}
+        $firstModel = if ($selectedModels.Count -gt 0) {
+            $m = $selectedModels[0]
+            if ($m -is [string]) { $m } else { $m.Name }
+        } else { "llama3.2" }
+        
+        $baseModel = $firstModel
+        $reasoningModel = $firstModel
+        $codeModel = $firstModel
+        try { if ($Configuration.BaseModel) { $baseModel = $Configuration.BaseModel } } catch {}
+        try { if ($Configuration.ReasoningModel) { $reasoningModel = $Configuration.ReasoningModel } } catch {}
+        try { if ($Configuration.CodeModel) { $codeModel = $Configuration.CodeModel } } catch {}
 
         $modelMapping = @{
             "general-assistant.modelfile" = "localllm-assistant"
