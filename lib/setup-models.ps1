@@ -91,7 +91,7 @@ function Install-CustomModels {
                     
                     Write-LogMessage -Message "Successfully created $modelName" -Level "INFO"
                 } catch {
-                    Write-LogMessage -Message "Failed to create model $modelName: $_" -Level "ERROR"
+                    Write-LogMessage -Message "Failed to create model ${modelName}: $_" -Level "ERROR"
                 } finally {
                     Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
                 }

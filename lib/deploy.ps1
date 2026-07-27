@@ -91,7 +91,7 @@ function New-DockerComposeFile {
         if ($accelConfig.DockerDevices -and $accelConfig.DockerDevices.Count -gt 0) {
             $accelBlock += "    devices:`n"
             foreach ($dev in $accelConfig.DockerDevices) {
-                $accelBlock += "      - $dev:$dev`n"
+                $accelBlock += "      - ${dev}:${dev}`n"
             }
         }
         if ($accelConfig.DockerGPUDeploy) {

@@ -219,9 +219,9 @@ function Get-DiskInfo {
     try {
         $driveLetter = (Get-Location).Drive.Name
         if (-not $driveLetter) { $driveLetter = "C" }
-        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$driveLetter:'"
+        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='${driveLetter}:'"
         return @{
-            Drive = "$driveLetter:"
+            Drive = "${driveLetter}:"
             FreeGB = [math]::Round($disk.FreeSpace / 1GB, 2)
             TotalGB = [math]::Round($disk.Size / 1GB, 2)
         }
