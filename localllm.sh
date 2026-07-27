@@ -44,6 +44,7 @@ show_help() {
     echo "  doctor      - Run diagnostics"
     echo "  backup      - Backup config and chat history"
     echo "  privacy     - Privacy controls (mode/report/status)"
+    echo "  analytics   - Show cost savings and efficacy metrics"
     echo "  uninstall   - Clean removal"
     echo "  version     - Show version info"
     echo "  help        - Show this help"
@@ -180,6 +181,80 @@ cmd_privacy() {
     echo "Mode: BALANCED (Default)"
 }
 
+cmd_analytics() {
+    METRICS_FILE="data/localllm-metrics.json"
+    
+    if [ ! -f "$METRICS_FILE" ]; then
+        echo -e "${YELLOW}No analytics data yet. Use LocalLLM to generate metrics.${NC}"
+        return
+    fi
+    
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║           LocalLLM Analytics Dashboard              ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    # Parse metrics using python3 (available on all platforms)
+    python3 -c "
+import json, sys
+try:
+    with open('$METRICS_FILE') as f:
+        m = json.load(f)
+except:
+    print('  Failed to read metrics file.')
+    sys.exit(1)
+
+total = m.get('total_requests', 0)
+local = m.get('total_local', 0)
+cloud = m.get('total_cloud', 0)
+pct = round((local / total) * 100, 1) if total > 0 else 0
+tokens = m.get('total_tokens', 0)
+savings = m.get('total_savings_usd', 0)
+cost = m.get('total_cost_usd', 0)
+blocked = m.get('total_sensitive_blocked', 0)
+
+print(f'  📊 Overall Statistics')
+print(f'  ─────────────────────────────────────────────────')
+print(f'    Total Requests:     {total:,}')
+print(f'    🟢 Local:           {local:,} ({pct}%)')
+print(f'    🔴 Cloud:           {cloud:,} ({round(100 - pct, 1)}%)')
+print(f'    Total Tokens:       {tokens:,}')
+print()
+print(f'  💰 Cost Analysis')
+print(f'  ─────────────────────────────────────────────────')
+print(f'    Total Saved:        \${savings:.2f}')
+print(f'    Cloud Spend:        \${cost:.2f}')
+avg = round(cost / total, 4) if total > 0 else 0
+print(f'    Avg Cost/Query:     \${avg}')
+print()
+
+# Efficiency bar
+filled = int(pct / 100 * 30)
+bar = '█' * filled + '░' * (30 - filled)
+print(f'  📈 Efficiency: {pct}% LOCAL')
+print(f'     [{bar}]')
+print()
+
+# Model breakdown
+models = m.get('models', {})
+if models:
+    print(f'  🤖 Model Usage')
+    print(f'  ─────────────────────────────────────────────────')
+    print(f'    {\"Model\":<25} {\"Requests\":>8} {\"Tokens\":>10} {\"Cost\":>8}')
+    for name, stats in sorted(models.items(), key=lambda x: x[1].get('count', 0), reverse=True)[:10]:
+        icon = '🔴' if any(p in name.lower() for p in ['gpt-', 'claude-', 'gemini-']) else '🟢'
+        print(f'    {icon} {name:<25} {stats.get(\"count\", 0):>6} {stats.get(\"tokens\", 0):>10,} \${stats.get(\"cost\", 0):>7.2f}')
+    print()
+
+# Privacy
+print(f'  🔒 Privacy')
+print(f'  ─────────────────────────────────────────────────')
+print(f'    Sensitive data blocked: {blocked} instances')
+print()
+print(f'  💡 Use the Privacy Dashboard tool in chat for detailed reports.')
+"
+}
+
 cmd_uninstall() {
     ./uninstall.sh
 }
@@ -214,6 +289,7 @@ case "$COMMAND" in
     doctor) cmd_doctor ;;
     backup) cmd_backup ;;
     privacy) cmd_privacy "$@" ;;
+    analytics) cmd_analytics ;;
     uninstall) cmd_uninstall ;;
     version) cmd_version ;;
     help) show_help ;;

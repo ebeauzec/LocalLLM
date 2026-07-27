@@ -33,15 +33,52 @@ LocalLLM includes an integrated suite of tools that the models can use autonomou
 | **DateTime Tool** | Date/time calculations and timezone conversions. |
 | **System Info** | Monitor system resources and running processes. |
 | **JSON/YAML Tool** | Parse, convert, and query structured data formats. |
+| **Document Parser** | Parse 100+ document formats via Apache Tika (PDF, Word, Excel, PPT, images, HTML, EPUB, email, archives). Local OCR via Tesseract. |
+| **Image Analyzer** | Analyze images, diagrams, and charts using local LLaVA vision model. Privacy-aware cloud fallback with full audit logging. |
+| **Privacy Dashboard** | View real-time privacy reports, cloud usage logs, and sensitive data detection summaries directly in chat. |
+| **Analytics Dashboard** | Cost savings reports, model usage breakdown, efficiency scores, daily trends, and cost projections — all in chat. |
 
 ## RAG (Document Intelligence)
 
 Retrieval-Augmented Generation (RAG) allows you to chat with your documents.
 
-*   **Supported file types:** PDF, DOCX, TXT, CSV, MD, JSON, HTML.
+*   **Supported Formats:** 100+ formats via Apache Tika — PDF, DOCX, XLSX, PPTX, HTML, EPUB, EML, CSV, images (with OCR), and more.
+*   **OCR Engine:** Tesseract-powered OCR for scanned documents and images via the `apache/tika:latest-full` Docker image.
+*   **Vision Analysis:** LLaVA 7B for local image understanding — diagrams, charts, photos analyzed without cloud APIs.
 *   **Knowledge Base Management:** Upload and manage collections of documents in workspaces.
 *   **Hybrid Search:** Combines semantic vector search with exact keyword matching for optimal retrieval.
 *   **Referencing:** Type `#` in the chat to instantly reference and include specific files or knowledge bases in your prompt.
+
+## Analytics & Cost Savings
+
+LocalLLM tracks every request to measure the efficacy of local processing and calculate real cost savings.
+
+### In-Chat Analytics (Privacy Dashboard Tool)
+Ask the AI to show analytics directly in chat:
+*   **Savings Report:** Total saved, cloud spend, cost per query, efficiency score.
+*   **Model Usage:** Breakdown by model with request counts, tokens, and costs.
+*   **Efficiency Report:** Processing distribution, cloud fallback reasons, privacy score.
+*   **Cost Projection:** Project future costs by week, month, or year.
+*   **Cloud Usage Log:** Detailed audit trail of every cloud API call.
+
+### Terminal Analytics
+```bash
+./localllm.sh analytics    # Linux/macOS
+.\localllm.ps1 analytics   # Windows
+```
+Displays a formatted dashboard with overall stats, cost analysis, efficiency bar, model breakdown, daily trends, and privacy summary.
+
+### What's Tracked
+| Metric | Description |
+|:---|:---|
+| Request count | Total, local, cloud (with percentages) |
+| Token usage | Input/output tokens per request |
+| Cost savings | Estimated $ saved by processing locally |
+| Cloud spend | Actual estimated cost of cloud API calls |
+| Model usage | Per-model request count, token usage, cost |
+| Daily trends | Day-by-day breakdown of all metrics |
+| PII detection | Sensitive data found, blocked, redacted |
+| Efficiency score | % of requests processed locally |
 
 ## Web Search
 

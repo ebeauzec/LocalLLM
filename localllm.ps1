@@ -37,7 +37,7 @@ param(
     [Parameter(Position = 0, Mandatory = $false)]
     [ValidateSet('start', 'stop', 'restart', 'status', 'update', 'models',
                  'add-model', 'remove-model', 'logs', 'config', 'doctor',
-                 'backup', 'privacy', 'uninstall', 'version', 'bump-version', 'push', 'help', '')]
+                 'backup', 'privacy', 'analytics', 'uninstall', 'version', 'bump-version', 'push', 'help', '')]
     [string]$Command = 'help',
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -137,6 +137,7 @@ function Show-Help {
     privacy report        View privacy audit report (local vs cloud usage)
     privacy status        Show current privacy settings
     privacy blocklist     Manage custom sensitive data patterns
+    analytics             Show cost savings, local vs cloud usage analytics
 
   Configuration:
     config                Re-run the configuration wizard
@@ -773,6 +774,117 @@ function Invoke-Push {
 }
 
 # ---------------------------------------------------------------------------
+# Command: analytics
+# ---------------------------------------------------------------------------
+function Invoke-Analytics {
+    Show-Header
+    $metricsFile = Join-Path $script:ProjectRoot 'data' 'localllm-metrics.json'
+    
+    if (-not (Test-Path $metricsFile)) {
+        Write-Host "  No analytics data yet. Use LocalLLM to generate metrics." -ForegroundColor Yellow
+        return
+    }
+    
+    $metrics = Get-Content $metricsFile -Raw | ConvertFrom-Json
+    
+    # Header
+    Write-Host "  ╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "  ║           LocalLLM Analytics Dashboard              ║" -ForegroundColor Cyan
+    Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Summary stats
+    $total = $metrics.total_requests ?? 0
+    $local = $metrics.total_local ?? 0
+    $cloud = $metrics.total_cloud ?? 0
+    $pctLocal = if ($total -gt 0) { [math]::Round(($local / $total) * 100, 1) } else { 0 }
+    $totalTokens = $metrics.total_tokens ?? 0
+    $totalSavings = $metrics.total_savings_usd ?? 0
+    $totalCost = $metrics.total_cost_usd ?? 0
+    
+    Write-Host "  📊 Overall Statistics" -ForegroundColor White
+    Write-Host "  ─────────────────────────────────────────────────" -ForegroundColor DarkGray
+    Write-Host "    Total Requests:     $total" -ForegroundColor White
+    Write-Host "    🟢 Local:           $local ($pctLocal%)" -ForegroundColor Green
+    Write-Host "    🔴 Cloud:           $cloud ($([math]::Round(100 - $pctLocal, 1))%)" -ForegroundColor $(if ($cloud -gt 0) { 'Yellow' } else { 'Green' })
+    Write-Host "    Total Tokens:       $($totalTokens.ToString('N0'))" -ForegroundColor White
+    Write-Host ""
+    
+    # Cost analysis
+    Write-Host "  💰 Cost Analysis" -ForegroundColor White
+    Write-Host "  ─────────────────────────────────────────────────" -ForegroundColor DarkGray
+    Write-Host "    Total Saved:        `$$([math]::Round($totalSavings, 2))" -ForegroundColor Green
+    Write-Host "    Cloud Spend:        `$$([math]::Round($totalCost, 2))" -ForegroundColor $(if ($totalCost -gt 0) { 'Yellow' } else { 'Green' })
+    $avgCost = if ($total -gt 0) { [math]::Round(($totalCost / $total), 4) } else { 0 }
+    Write-Host "    Avg Cost/Query:     `$$avgCost" -ForegroundColor White
+    Write-Host ""
+    
+    # Efficiency bar
+    $barLength = 30
+    $filled = [math]::Floor($pctLocal / 100 * $barLength)
+    $empty = $barLength - $filled
+    $bar = ('█' * $filled) + ('░' * $empty)
+    Write-Host "  📈 Efficiency: $pctLocal% LOCAL" -ForegroundColor White
+    Write-Host "     [$bar]" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Model breakdown (if available)
+    if ($metrics.models) {
+        Write-Host "  🤖 Model Usage" -ForegroundColor White
+        Write-Host "  ─────────────────────────────────────────────────" -ForegroundColor DarkGray
+        Write-Host "    Model                    Requests    Tokens    Cost" -ForegroundColor DarkGray
+        foreach ($modelName in ($metrics.models.PSObject.Properties | Sort-Object { $_.Value.count } -Descending | Select-Object -First 10).Name) {
+            $m = $metrics.models.$modelName
+            $type = if ($modelName -match 'gpt-|claude-|gemini-') { '🔴' } else { '🟢' }
+            $nameDisplay = $modelName.PadRight(25)
+            $countDisplay = ($m.count).ToString().PadLeft(8)
+            $tokenDisplay = ($m.tokens).ToString('N0').PadLeft(10)
+            $costDisplay = ("`$" + [math]::Round($m.cost, 2)).PadLeft(8)
+            Write-Host "    $type $nameDisplay $countDisplay $tokenDisplay $costDisplay" -ForegroundColor White
+        }
+        Write-Host ""
+    }
+    
+    # Daily trend (last 7 days)
+    if ($metrics.daily) {
+        Write-Host "  📅 Daily Trend (Last 7 Days)" -ForegroundColor White
+        Write-Host "  ─────────────────────────────────────────────────" -ForegroundColor DarkGray
+        Write-Host "    Date          Local   Cloud   Tokens    Saved" -ForegroundColor DarkGray
+        $sortedDays = $metrics.daily.PSObject.Properties | Sort-Object Name -Descending | Select-Object -First 7
+        foreach ($day in $sortedDays) {
+            $d = $day.Value
+            $dateDisplay = $day.Name.PadRight(12)
+            $localDisplay = ($d.local).ToString().PadLeft(6)
+            $cloudDisplay = ($d.cloud).ToString().PadLeft(6)
+            $tokenDisplay = ($d.tokens).ToString('N0').PadLeft(10)
+            $savedDisplay = ("`$" + [math]::Round($d.savings, 2)).PadLeft(8)
+            Write-Host "    $dateDisplay $localDisplay $cloudDisplay $tokenDisplay $savedDisplay" -ForegroundColor White
+        }
+        Write-Host ""
+    }
+    
+    # Privacy stats
+    $blocked = $metrics.total_sensitive_blocked ?? 0
+    Write-Host "  🔒 Privacy" -ForegroundColor White
+    Write-Host "  ─────────────────────────────────────────────────" -ForegroundColor DarkGray
+    Write-Host "    Sensitive data blocked: $blocked instances" -ForegroundColor $(if ($blocked -gt 0) { 'Green' } else { 'White' })
+    Write-Host "    Privacy mode:           $(Get-PrivacyMode)" -ForegroundColor White
+    Write-Host ""
+    
+    Write-Host "  💡 Use the Privacy Dashboard tool in chat for detailed reports." -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+function Get-PrivacyMode {
+    $configPath = Join-Path $script:ProjectRoot 'config' 'privacy-settings.json'
+    if (Test-Path $configPath) {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        return $config.mode ?? 'BALANCED'
+    }
+    return 'BALANCED'
+}
+
+# ---------------------------------------------------------------------------
 # Command Dispatcher
 # ---------------------------------------------------------------------------
 try {
@@ -797,6 +909,7 @@ try {
             Invoke-BumpVersion -Type $type 
         }
         'push'         { Invoke-Push }
+        'analytics'    { Invoke-Analytics }
         'help'         { Show-Help }
         default        { Show-Help }
     }
