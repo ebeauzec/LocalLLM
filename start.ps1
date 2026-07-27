@@ -107,8 +107,8 @@ if (-not $isInstalled) {
 Write-Host "  ✅ LocalLLM is installed. Starting services..." -ForegroundColor Green
 Write-Host ""
 
-# Read port from config (fallback to 3000)
-$webUIPort = 3000
+# Read port from config (fallback to 3100)
+$webUIPort = 3100
 try {
     $stateFile = Join-Path $ProjectRoot '.localllm-install-state.json'
     if (Test-Path $stateFile) {

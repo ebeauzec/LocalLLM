@@ -59,7 +59,7 @@ function New-DockerComposeFile {
         # Replace basic variables with safe defaults
         $content = $content -replace '\{\{OLLAMA_PORT\}\}', (Get-ConfigValue $Config 'OllamaPort' 11434)
         $content = $content -replace '\{\{LITELLM_PORT\}\}', (Get-ConfigValue $Config 'LiteLLMPort' 4000)
-        $content = $content -replace '\{\{WEBUI_PORT\}\}', (Get-ConfigValue $Config 'WebUIPort' 3000)
+        $content = $content -replace '\{\{WEBUI_PORT\}\}', (Get-ConfigValue $Config 'WebUIPort' 3100)
         $content = $content -replace '\{\{SEARXNG_PORT\}\}', (Get-ConfigValue $Config 'SearXNGPort' 8888)
         $content = $content -replace '\{\{TIKA_PORT\}\}', (Get-ConfigValue $Config 'TikaPort' 9998)
         $content = $content -replace '\{\{PIPELINES_PORT\}\}', (Get-ConfigValue $Config 'PipelinesPort' 9099)
@@ -496,7 +496,7 @@ function Wait-ForServices {
         
         $ollamaPort = Get-ConfigValue $Config 'OllamaPort' 11434
         $litellmPort = Get-ConfigValue $Config 'LiteLLMPort' 4000
-        $webuiPort = Get-ConfigValue $Config 'WebUIPort' 3000
+        $webuiPort = Get-ConfigValue $Config 'WebUIPort' 3100
         
         $ollamaUrl = "http://localhost:${ollamaPort}/"
         $litellmUrl = "http://localhost:${litellmPort}/health/liveliness"

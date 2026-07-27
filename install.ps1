@@ -497,7 +497,7 @@ function Start-Installation {
         }
 
         # -------------------------------------------------------------------
-        $webUIPort = 3000
+        $webUIPort = 3100
         try { if ($state.Configuration.WebUIPort) { $webUIPort = $state.Configuration.WebUIPort } } catch {}
         $localURL = "http://localhost:${webUIPort}"
         $esc = [char]27

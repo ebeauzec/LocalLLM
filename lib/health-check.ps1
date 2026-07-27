@@ -72,7 +72,7 @@ function Test-LiteLLMAPI {
 
 function Test-OpenWebUI {
     try {
-        $response = Invoke-WebRequest -Uri 'http://localhost:3000/' -TimeoutSec 5 -UseBasicParsing
+        $response = Invoke-WebRequest -Uri 'http://localhost:3100/' -TimeoutSec 5 -UseBasicParsing
         return @{ Name="Open WebUI"; Status="Pass"; Message="WebUI is accessible"; AutoFixAvailable=$false }
     } catch {
         return @{ Name="Open WebUI"; Status="Fail"; Message="WebUI unreachable"; AutoFixAvailable=$true; AutoFixAttempted=$false; AutoFixResult=$null }

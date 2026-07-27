@@ -337,8 +337,8 @@ function Select-Ports {
         Write-Host "     Press Enter to accept defaults." -ForegroundColor Gray
         Write-Host ""
 
-        $webui = Read-Host "     Web UI port [3000]"
-        if ([string]::IsNullOrWhiteSpace($webui)) { $webui = 3000 } else { $webui = [int]$webui }
+        $webui = Read-Host "     Web UI port [3100]"
+        if ([string]::IsNullOrWhiteSpace($webui)) { $webui = 3100 } else { $webui = [int]$webui }
 
         $ollama = Read-Host "     Ollama port  [11434]"
         if ([string]::IsNullOrWhiteSpace($ollama)) { $ollama = 11434 } else { $ollama = [int]$ollama }
@@ -352,7 +352,7 @@ function Select-Ports {
             LiteLLMPort = $litellm
         }
     } catch {
-        return @{ WebUIPort = 3000; OllamaPort = 11434; LiteLLMPort = 4000 }
+        return @{ WebUIPort = 3100; OllamaPort = 11434; LiteLLMPort = 4000 }
     }
 }
 

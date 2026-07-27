@@ -115,7 +115,7 @@ function Get-InstallConfig {
         }
         return $config
     }
-    return @{ WEBUI_PORT = '3000'; OLLAMA_PORT = '11434'; LITELLM_PORT = '4000' }
+    return @{ WEBUI_PORT = '3100'; OLLAMA_PORT = '11434'; LITELLM_PORT = '4000' }
 }
 
 function Show-Header {
@@ -217,7 +217,7 @@ function Invoke-Start {
 
     Invoke-DockerCompose up -d
     
-    $port = $config.WEBUI_PORT ?? '3000'
+    $port = $config.WEBUI_PORT ?? '3100'
     Write-Host "  Waiting for Open WebUI to be healthy..." -ForegroundColor Gray
     $timeout = 60
     $elapsed = 0
@@ -265,7 +265,7 @@ function Invoke-Stop {
     Write-Host "    • Memory freed: Evaluated and returned to host" -ForegroundColor Gray
     Write-Host "    • GPU VRAM freed: Cleared" -ForegroundColor Gray
     Write-Host "    • Containers stopped: $containersCount" -ForegroundColor Gray
-    Write-Host "    • Ports released: 3000, 11434, 4000, etc." -ForegroundColor Gray
+    Write-Host "    • Ports released: 3100, 11434, 4000, etc." -ForegroundColor Gray
     Write-Host ""
 }
 
@@ -303,7 +303,7 @@ function Invoke-Status {
 
     # Quick endpoint checks
     $endpoints = @(
-        @{ Name = "Open WebUI"; Url = "http://localhost:$($config.WEBUI_PORT ?? '3000')" },
+        @{ Name = "Open WebUI"; Url = "http://localhost:$($config.WEBUI_PORT ?? '3100')" },
         @{ Name = "Ollama";     Url = "http://localhost:$($config.OLLAMA_PORT ?? '11434')" },
         @{ Name = "LiteLLM";   Url = "http://localhost:$($config.LITELLM_PORT ?? '4000')/health" }
     )
