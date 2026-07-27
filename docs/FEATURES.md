@@ -1,64 +1,45 @@
 # LocalLLM Features Reference
 
-> **Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.**
-> GitHub: [LocalLLM](https://github.com/ebeauzec/LocalLLM)
-
 This document provides a comprehensive reference for all enterprise features available in the LocalLLM platform.
 
----
+## 14 Specialized AI Personas
 
-## Hardware Acceleration
+LocalLLM comes pre-configured with 14 specialized model personas designed for specific enterprise workflows.
 
-LocalLLM automatically detects and configures all available accelerators at install time.
+| Profile | Description | Best Use Cases |
+| :--- | :--- | :--- |
+| **General Assistant** | All-purpose chat & Q&A | Daily tasks, summarization, research |
+| **Reasoning Engine** | Deep thinking with chain-of-thought | Math, logic, complex analysis |
+| **Code Developer** | Software engineering | Code gen, review, debugging, architecture |
+| **Data Analyst** | Statistics & data processing | SQL, pandas, visualization, reporting |
+| **Creative Writer** | Content creation | Blog posts, copywriting, storytelling |
+| **Security Analyst** | Cybersecurity | Code audits, threat modeling, compliance |
+| **Solutions Architect** | System design & architecture | Evaluating proposals, scaling systems |
+| **Storage Engineer** | SAN/NAS management | Storage migrations, IOPS optimization |
+| **Technical Account Manager** | Client relationship management | QBR prep, incident reporting |
+| **Document Processor** | Data structuring | OCR cleanup, formatting notes |
+| **Project Manager** | Agile planning & risk | Project plans, user stories |
+| **Technical Writer** | Documentation | API docs, user guides |
+| **UX Researcher** | Usability analysis | Critiquing UI designs |
+| **SQL Expert** | Database querying | Optimizing query performance, schemas |
 
-### GPU Support
+## 30+ Prompt Templates
 
-| Vendor | Detection | Docker Config | Image |
-|:---|:---|:---|:---|
-| **NVIDIA** (CUDA) | `nvidia-smi` + WMI | `deploy: driver: nvidia` | `ollama/ollama:latest` |
-| **AMD** (ROCm) | `rocm-smi` + WMI + lspci | `devices: /dev/kfd, /dev/dri` | `ollama/ollama:rocm` |
-| **Intel** (Arc) | WMI + lspci | `/dev/dri` passthrough | `ollama/ollama:latest` |
-| **Apple** (Metal) | Native detection | N/A (native macOS) | `ollama/ollama:latest` |
+LocalLLM includes an extensive library of over 30 pre-built prompt templates to kickstart your workflows. Highlights include:
+- Code Reviewer
+- Unit Test Generator
+- Documentation Writer
+- Meeting Summarizer
+- Data Extraction
+- UX Researcher
+- SQL Expert
+- Language Translator
+- Brainstorming Partner
+- ...and 20+ more tuned for various enterprise tasks.
 
-### NPU Detection
+## 12 Integrated Developer Tools
 
-| NPU | Detection Method | Status |
-|:---|:---|:---|
-| AMD XDNA | PnP device: "NPU Compute Accelerator Device" | Detected (Ollama support pending) |
-| Intel AI Boost | PnP device: "Intel(R) AI Boost" | Detected (Ollama support pending) |
-| Apple Neural Engine | macOS: Apple M-series CPU | Detected (partial Metal support) |
-
-### CPU Optimization
-
-Automatically configured based on your hardware:
-
-| Setting | Default | Purpose |
-|:---|:---|:---|
-| `OLLAMA_NUM_THREADS` | Physical CPU cores | CPU threads for inference |
-| `OLLAMA_NUM_PARALLEL` | cores/4 (max 4) | Concurrent request handling |
-| `OLLAMA_MAX_LOADED_MODELS` | RAM/16 (max 4) | Models loaded simultaneously |
-| `OLLAMA_FLASH_ATTENTION` | Enabled | Reduced VRAM, faster inference |
-| `OLLAMA_KV_CACHE_TYPE` | q8_0 (≥64GB), q4_0 (≥32GB) | KV cache precision |
-| `OLLAMA_KEEP_ALIVE` | 24h | Model stays loaded in memory |
-
----
-
-## AI Assistant Profiles
-
-LocalLLM comes pre-configured with six specialized model profiles designed for specific workflows.
-
-| Profile | Description | Best Use Cases | Key Parameters |
-| :--- | :--- | :--- | :--- |
-| **General Assistant** | All-purpose chat, Q&A, and summarization. | Daily inquiries, brainstorming, drafting emails. | Balanced temperature (0.7), medium context. |
-| **Reasoning Engine** | Deep thinking with visible chain-of-thought. | Complex problem solving, logic puzzles, multi-step planning. | Low temperature (0.1), large context, CoT enabled. |
-| **Code Developer** | Software engineering with code gen, review, debugging. | Writing scripts, reviewing pull requests, architecture design. | Low temperature (0.2), strict system prompt, large context. |
-| **Data Analyst** | Statistics, data manipulation, visualization. | Data cleaning, SQL generation, charting insights. | Balanced temperature (0.5), access to tools. |
-| **Creative Writer** | Content creation, copywriting, storytelling. | Blog posts, marketing copy, creative writing. | High temperature (0.9), high presence penalty. |
-| **Security Analyst** | Cybersecurity auditing, threat modeling. | Code security review, architecture threat modeling. | Low temperature (0.1), specialized security context. |
-
-## Built-in Tools
-
-LocalLLM includes an integrated suite of tools that the models can use autonomously to accomplish complex tasks.
+LocalLLM includes an integrated suite of 12 tools that the models can use autonomously to accomplish complex tasks.
 
 | Tool | Description |
 | :--- | :--- |
@@ -69,156 +50,34 @@ LocalLLM includes an integrated suite of tools that the models can use autonomou
 | **DateTime Tool** | Date/time calculations and timezone conversions. |
 | **System Info** | Monitor system resources and running processes. |
 | **JSON/YAML Tool** | Parse, convert, and query structured data formats. |
-| **Document Parser** | Parse 100+ document formats via Apache Tika (PDF, Word, Excel, PPT, images, HTML, EPUB, email, archives). Local OCR via Tesseract. |
-| **Image Analyzer** | Analyze images, diagrams, and charts using local LLaVA vision model. Privacy-aware cloud fallback with full audit logging. |
-| **Privacy Dashboard** | View real-time privacy reports, cloud usage logs, and sensitive data detection summaries directly in chat. |
-| **Analytics Dashboard** | Cost savings reports, model usage breakdown, efficiency scores, daily trends, and cost projections — all in chat. |
+| **Document Parser** | Parse 100+ document formats via Apache Tika. Local OCR via Tesseract. |
+| **Image Analyzer** | Analyze images, diagrams, and charts using local LLaVA vision model. |
+| **Privacy Dashboard** | View real-time privacy reports and cloud usage logs in chat. |
+| **Analytics Dashboard** | Cost savings reports, model usage breakdown in chat. |
+| **MCP Connector** | Bridge to external systems via Model Context Protocol. |
 
 ## RAG (Document Intelligence)
 
 Retrieval-Augmented Generation (RAG) allows you to chat with your documents.
-
-*   **Supported Formats:** 100+ formats via Apache Tika — PDF, DOCX, XLSX, PPTX, HTML, EPUB, EML, CSV, images (with OCR), and more.
-*   **OCR Engine:** Tesseract-powered OCR for scanned documents and images via the `apache/tika:latest-full` Docker image.
-*   **Vision Analysis:** LLaVA 7B for local image understanding — diagrams, charts, photos analyzed without cloud APIs.
-*   **Knowledge Base Management:** Upload and manage collections of documents in workspaces.
-*   **Hybrid Search:** Combines semantic vector search with exact keyword matching for optimal retrieval.
-*   **Referencing:** Type `#` in the chat to instantly reference and include specific files or knowledge bases in your prompt.
+*   **Supported Formats:** 100+ formats via Apache Tika.
+*   **OCR Engine:** Tesseract-powered OCR for scanned documents.
+*   **Hybrid Search:** Combines semantic vector search with exact keyword matching.
 
 ## Analytics & Cost Savings
 
-LocalLLM tracks every request to measure the efficacy of local processing and calculate real cost savings.
-
-### In-Chat Analytics (Privacy Dashboard Tool)
-Ask the AI to show analytics directly in chat:
-*   **Savings Report:** Total saved, cloud spend, cost per query, efficiency score.
-*   **Model Usage:** Breakdown by model with request counts, tokens, and costs.
-*   **Efficiency Report:** Processing distribution, cloud fallback reasons, privacy score.
-*   **Cost Projection:** Project future costs by week, month, or year.
-*   **Cloud Usage Log:** Detailed audit trail of every cloud API call.
-
-### Terminal Analytics
-```bash
-./localllm.sh analytics    # Linux/macOS
-.\localllm.ps1 analytics   # Windows
-```
-Displays a formatted dashboard with overall stats, cost analysis, efficiency bar, model breakdown, daily trends, and privacy summary.
-
-### What's Tracked
-| Metric | Description |
-|:---|:---|
-| Request count | Total, local, cloud (with percentages) |
-| Token usage | Input/output tokens per request |
-| Cost savings | Estimated $ saved by processing locally |
-| Cloud spend | Actual estimated cost of cloud API calls |
-| Model usage | Per-model request count, token usage, cost |
-| Daily trends | Day-by-day breakdown of all metrics |
-| PII detection | Sensitive data found, blocked, redacted |
-| Efficiency score | % of requests processed locally |
+LocalLLM tracks every request to measure the efficacy of local processing and calculate real cost savings, accessible via the in-chat Privacy Dashboard or terminal.
 
 ## Web Search
 
-Integrates SearXNG for private, untracked web search capabilities.
-
-*   **SearXNG Integration:** Self-hosted metasearch engine that aggregates results without tracking.
-*   **Context Injection:** Search results are intelligently formatted and injected into the model's context for up-to-date answers.
-*   **Configuration:** Configure search engines (Google, DuckDuckGo, Bing) via the Admin Dashboard.
+Integrates SearXNG for private, untracked web search capabilities, dynamically injecting context into model responses.
 
 ## Thinking & Reasoning
 
-Advanced reasoning capabilities for complex tasks.
+Advanced reasoning capabilities for complex tasks using models like DeepSeek-R1 with visible chain-of-thought blocks.
 
-*   **Chain-of-Thought (CoT):** Models output their step-by-step reasoning process before providing the final answer.
-*   **Collapsible Blocks:** Reasoning steps are displayed in clean, collapsible UI blocks to keep the chat tidy.
-*   **Effort Control:** Adjust the "reasoning effort" parameter to control how much time the model spends thinking.
-*   **When to use:** Use reasoning models for logic, math, and complex planning. Use general models for simple queries and creative tasks.
+## Customization
 
-## Code Execution
+Configure MCP servers, API keys for cloud fallbacks (LiteLLM), and manage users via the comprehensive Admin Dashboard.
 
-Run Python code directly within the chat interface.
-
-*   **Sandboxed Environment:** Code runs in isolated Docker containers to protect the host system.
-*   **Security Constraints:** Network access is restricted, and file system access is limited to a temporary workspace.
-*   **Output Formats:** Supports text output, tables, and inline rendering of generated images/charts (e.g., matplotlib).
-*   **Data Analysis:** The model can write scripts to analyze CSV data and generate insights automatically.
-
-## Artifacts
-
-Artifacts are standalone, interactive UI elements generated by the model.
-
-*   **What they are:** Substantial pieces of content (code, documents, designs) that deserve a dedicated view.
-*   **Supported types:** Code snippets, HTML/React components, Markdown documents, Mermaid diagrams.
-*   **Side-Panel Rendering:** Artifacts render in a dedicated side-panel alongside the chat, allowing you to view and interact with them while continuing the conversation.
-*   **Editing and Exporting:** Easily edit artifact code directly in the UI or export them to files.
-
-## MCP (Model Context Protocol)
-
-Connect LocalLLM to external tools and data sources.
-
-*   **What is MCP:** A standard protocol for models to interact with local and remote resources.
-*   **Supported Connection Types:** stdio (local execution), SSE (remote HTTP).
-*   **Adding Servers:** Configure MCP servers in the settings to expose new tools to the models.
-*   **Popular Servers:** filesystem (read local files), github (manage repos), postgres (query databases).
-
-## Multi-Model Switching
-
-Seamlessly transition between different models within a single chat.
-
-*   **How to switch:** Use the model selector dropdown at the top of the chat to change the active model mid-conversation.
-*   **Model Comparison:** Use the "Compare" feature to send a single prompt to multiple models simultaneously and evaluate their responses side-by-side.
-*   **When to use:** Start a complex task with the Reasoning Engine, then switch to the Code Developer to implement the plan.
-
-## Keyboard Shortcuts
-
-| Action | Shortcut |
-| :--- | :--- |
-| Open New Chat | `Ctrl/Cmd + K` |
-| Focus Input | `/` |
-| Reference File | `#` |
-| Mention Model | `@` |
-| Submit Prompt | `Enter` |
-| Line Break | `Shift + Enter` |
-| Stop Generation | `Esc` |
-| Toggle Sidebar | `Ctrl/Cmd + B` |
-
-## Prompt Library
-
-Pre-built prompt templates to kickstart your workflows.
-
-1.  **Code Reviewer:** Analyzes provided code for bugs, security vulnerabilities, and style improvements.
-2.  **Unit Test Generator:** Generates comprehensive unit tests for a given function or class.
-3.  **Documentation Writer:** Drafts technical documentation based on code or specifications.
-4.  **Meeting Summarizer:** Extracts action items and key decisions from meeting transcripts.
-5.  **Data Extraction:** Pulls structured JSON data from unstructured text.
-6.  **ELI5 (Explain Like I'm 5):** Breaks down complex concepts into simple analogies.
-7.  **UX Researcher:** Critiques UI designs and suggests usability improvements.
-8.  **SQL Expert:** Generates optimized SQL queries based on natural language requests.
-9.  **Language Translator:** Translates text idiomatically, preserving tone and context.
-10. **Brainstorming Partner:** Generates creative ideas and lateral thinking exercises.
-
-## Admin Dashboard
-
-Comprehensive control over the LocalLLM instance.
-
-*   **User Management:** Create users, manage roles (Admin/User), and handle password resets.
-*   **Usage Analytics:** Monitor token consumption, active users, and model popularity.
-*   **Model Management:** Download new models from Ollama, configure API keys for cloud fallbacks (LiteLLM).
-*   **System Settings:** Configure RAG chunking parameters, Web Search limits, and default models.
-
-## API Access
-
-Integrate LocalLLM into your existing tools and scripts.
-
-*   **Endpoint:** Exposes a fully OpenAI-compatible API endpoint.
-*   **Authentication:** Generate API keys via the user settings page.
-*   **Example (cURL):**
-```bash
-curl http://localhost:3000/api/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "model": "llama3",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
-```
-*   **Example (Python):** Use the standard `openai` python package by pointing the `base_url` to `http://localhost:3000/api`.
+---
+Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.

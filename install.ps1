@@ -410,12 +410,20 @@ function Start-Installation {
             Write-Host ""
 
             Write-Host "  Creating specialized AI assistant profiles..." -ForegroundColor Gray
-            Write-Host "    • General Assistant — All-purpose chat & Q&A" -ForegroundColor DarkGray
-            Write-Host "    • Reasoning Engine — Deep thinking with chain-of-thought" -ForegroundColor DarkGray
-            Write-Host "    • Code Developer  — Software engineering & debugging" -ForegroundColor DarkGray
-            Write-Host "    • Data Analyst    — Statistics & data processing" -ForegroundColor DarkGray
-            Write-Host "    • Creative Writer — Content creation & copywriting" -ForegroundColor DarkGray
-            Write-Host "    • Security Analyst — Cybersecurity & threat modeling" -ForegroundColor DarkGray
+            Write-Host "    • General Assistant     — All-purpose chat & Q&A" -ForegroundColor DarkGray
+            Write-Host "    • Reasoning Engine      — Deep thinking with chain-of-thought" -ForegroundColor DarkGray
+            Write-Host "    • Code Developer        — Software engineering & debugging" -ForegroundColor DarkGray
+            Write-Host "    • Data Analyst          — Statistics & data processing" -ForegroundColor DarkGray
+            Write-Host "    • Creative Writer       — Content creation & copywriting" -ForegroundColor DarkGray
+            Write-Host "    • Security Analyst      — Cybersecurity & threat modeling" -ForegroundColor DarkGray
+            Write-Host "    • Solutions Architect   — System design & architecture" -ForegroundColor DarkGray
+            Write-Host "    • Storage Engineer      — Enterprise storage & data management" -ForegroundColor DarkGray
+            Write-Host "    • Technical Account Mgr — Customer success & QBRs" -ForegroundColor DarkGray
+            Write-Host "    • DevOps Engineer       — CI/CD & infrastructure automation" -ForegroundColor DarkGray
+            Write-Host "    • Executive Advisor     — Strategic business guidance" -ForegroundColor DarkGray
+            Write-Host "    • Technical Writer      — Documentation & style guides" -ForegroundColor DarkGray
+            Write-Host "    • Project Manager       — Planning & execution" -ForegroundColor DarkGray
+            Write-Host "    • Document Processor    — Restructure & reformat documents" -ForegroundColor DarkGray
             Write-Host ""
 
             Install-CustomModels -Config $state.Configuration
@@ -444,8 +452,8 @@ function Start-Installation {
             Write-Host "    • Code execution sandbox" -ForegroundColor DarkGray
             Write-Host "    • Artifacts rendering" -ForegroundColor DarkGray
             Write-Host "    • Thinking/reasoning display" -ForegroundColor DarkGray
-            Write-Host "    • Developer tools (7 built-in tools)" -ForegroundColor DarkGray
-            Write-Host "    • Prompt template library (10 templates)" -ForegroundColor DarkGray
+            Write-Host "    • Developer tools (12 built-in tools)" -ForegroundColor DarkGray
+            Write-Host "    • Prompt template library (31 templates)" -ForegroundColor DarkGray
             Write-Host "    • RAG optimization" -ForegroundColor DarkGray
             Write-Host ""
 

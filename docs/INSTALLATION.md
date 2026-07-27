@@ -1,12 +1,18 @@
 # Installation Guide
 
-Welcome to the LocalLLM Installation Guide. This document provides step-by-step instructions to get your local AI platform up and running on Windows.
+Welcome to the LocalLLM Installation Guide. This document provides step-by-step instructions to get your local AI platform up and running.
 
 ## Prerequisites
 
-Before starting, ensure your system meets the [System Requirements](../README.md#system-requirements). You will also need:
-- Administrator privileges on your Windows machine
+Before starting, ensure your system meets the requirements. You will also need:
+- Administrator privileges
 - Internet connection (for downloading dependencies and models)
+- Docker Desktop or Docker Engine installed
+
+## Google Drive Deployment Notes
+
+LocalLLM now fully supports being installed and run directly from Google Drive folders (e.g., `G:\My Drive\LocalLLM`). 
+By utilizing **named Docker volumes** instead of host bind mounts, we avoid file locking and syncing conflicts common with cloud storage providers.
 
 ## Step-by-Step Installation
 
@@ -24,49 +30,40 @@ Before starting, ensure your system meets the [System Requirements](../README.md
    ```
 
 3. **Follow On-Screen Prompts**
-   The installer will transparently perform the following steps:
-   - **Environment Check**: Verifies hardware, OS version, and required dependencies.
-   - **Docker Setup**: Installs or configures Docker Desktop / WSL2 if necessary.
-   - **Hardware Profiling**: Detects your CPU/RAM/GPU and selects the appropriate model tier.
-   - **Container Deployment**: Pulls the Docker images for Ollama, LiteLLM, Open WebUI, and SearXNG.
-   - **Model Download**: Downloads the optimal base models for your hardware.
-   - **Health Verification**: Runs self-diagnostic checks to ensure all services are communicating properly.
+   The installer will handle hardware profiling, Docker setup, volume creation, and model downloading.
 
 ### Expected Output
-You should see a progress bar and detailed logs of each phase. Upon success, you will receive a URL (typically `http://localhost:3000`) to access the interface.
+Upon success, you will receive a URL (`http://localhost:3100`) to access the interface. The default port is now 3100 to avoid conflicts with other development servers.
+
+## Managing the Deployment
+
+To start the platform for daily use:
+```powershell
+.\start.ps1
+```
+
+**IMPORTANT**: To ensure data consistency, always shut down the platform using the new stop script:
+```powershell
+.\stop.ps1
+```
+This script performs a graceful shutdown, flushing databases and releasing resources safely.
 
 ## GPU Setup for NVIDIA
 
-For optimal performance, an NVIDIA GPU is recommended. The installer automatically configures Docker to use your GPU, but you must ensure you have the latest [NVIDIA Drivers](https://www.nvidia.com/Download/index.aspx) installed.
-If Docker fails to utilize your GPU, verify that the NVIDIA Container Toolkit is correctly installed within your WSL2 backend.
+For optimal performance, an NVIDIA GPU is recommended. The installer automatically configures Docker to use your GPU. Ensure you have the latest NVIDIA Drivers installed.
 
 ## Silent/Unattended Installation
 
-For enterprise or headless deployments, you can run the installer non-interactively:
+For enterprise or headless deployments:
 ```powershell
 .\install.ps1 -Silent -AcceptEULA -Tier High
 ```
-*(Check `.\install.ps1 -Help` for all available parameters)*
-
-## Upgrading from a Previous Version
-
-To update an existing installation to the latest version without losing your data:
-```powershell
-localllm update
-```
-
-## Uninstallation
-
-To completely remove LocalLLM, including all containers, models, and user data:
-```powershell
-localllm uninstall
-```
-*Note: This action is irreversible. Ensure you have backed up any important chats or documents.*
 
 ## Troubleshooting Installation Issues
 
-- **Docker Won't Start**: Ensure Virtualization is enabled in your BIOS/UEFI and WSL2 is properly installed.
-- **Port Conflicts**: If ports 3000, 11434, 4000, or 8080 are in use, the installer will attempt to find alternative ports. Check the output logs for the assigned URLs.
-- **Download Failures**: If model downloads fail, run `localllm repair` to retry.
+- **Port Conflicts**: If port 3100 is in use, the installer will attempt to find alternative ports. Check the output logs.
+- **Docker Won't Start**: Ensure Virtualization is enabled in your BIOS/UEFI.
+- **Drive Sync Errors**: Ensure you are using the latest version of LocalLLM which uses named volumes to avoid these errors.
 
-For more detailed help, see the [Troubleshooting Guide](TROUBLESHOOTING.md).
+---
+Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.

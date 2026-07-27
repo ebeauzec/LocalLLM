@@ -135,27 +135,26 @@ function Set-OpenWebUIModels {
         $headers = @{ "Authorization" = "Bearer $Token" }
 
         $models = @(
-            @{ Name = "General Assistant"; Description = "Versatile AI assistant"; Icon = "🤖"; ModelName = "localllm-assistant"; Category = "Assistant" },
-            @{ Name = "Reasoning Engine"; Description = "Advanced reasoning and logic"; Icon = "🧠"; ModelName = "localllm-reasoning"; Category = "Reasoning" },
-            @{ Name = "Code Developer"; Description = "Software engineering expert"; Icon = "💻"; ModelName = "localllm-developer"; Category = "Development" },
-            @{ Name = "Data Analyst"; Description = "Data analysis and visualization"; Icon = "📊"; ModelName = "localllm-analyst"; Category = "Analysis" },
-            @{ Name = "Creative Writer"; Description = "Creative and engaging writing"; Icon = "✍️"; ModelName = "localllm-creative"; Category = "Creative" },
-            @{ Name = "Security Analyst"; Description = "Cybersecurity expert"; Icon = "🛡️"; ModelName = "localllm-security"; Category = "Security" }
+            @{ id = "localllm-assistant"; name = "General Assistant"; meta = @{ description = "Versatile AI assistant"; profile_image_url = "🤖"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-reasoning"; name = "Reasoning Engine"; meta = @{ description = "Advanced reasoning and logic"; profile_image_url = "🧠"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-developer"; name = "Code Developer"; meta = @{ description = "Software engineering expert"; profile_image_url = "💻"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-analyst"; name = "Data Analyst"; meta = @{ description = "Data analysis and visualization"; profile_image_url = "📊"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-creative"; name = "Creative Writer"; meta = @{ description = "Creative and engaging writing"; profile_image_url = "✍️"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-security"; name = "Security Analyst"; meta = @{ description = "Cybersecurity expert"; profile_image_url = "🛡️"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-architect"; name = "Solutions Architect"; meta = @{ description = "System architecture and design"; profile_image_url = "🏗️"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-storage"; name = "Storage Engineer"; meta = @{ description = "Data storage and management"; profile_image_url = "💾"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-tam"; name = "Technical Account Manager"; meta = @{ description = "Client relations and technical guidance"; profile_image_url = "🤝"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-devops"; name = "DevOps Engineer"; meta = @{ description = "CI/CD and infrastructure automation"; profile_image_url = "⚙️"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-executive"; name = "Executive Advisor"; meta = @{ description = "Strategic business guidance"; profile_image_url = "👔"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-writer"; name = "Technical Writer"; meta = @{ description = "Clear technical documentation"; profile_image_url = "📝"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-pm"; name = "Project Manager"; meta = @{ description = "Project planning and execution"; profile_image_url = "📅"; capabilities = @{ vision = $false; usage = $true } }; params = @{} },
+            @{ id = "localllm-docproc"; name = "Document Processor"; meta = @{ description = "Document structuring and analysis"; profile_image_url = "📄"; capabilities = @{ vision = $false; usage = $true } }; params = @{} }
         )
 
         foreach ($model in $models) {
-            Write-LogMessage -Message "Configuring model: $($model.Name)" -Level "INFO"
-            # Note: Exact payload depends on Open WebUI API structure.
-            $payload = @{
-                name = $model.Name
-                description = $model.Description
-                model = $model.ModelName
-                info = @{
-                    meta = @{
-                        profile_image_url = $model.Icon
-                    }
-                }
-            } | ConvertTo-Json -Depth 5
+            Write-LogMessage -Message "Configuring model: $($model.name)" -Level "INFO"
+            # Exact payload matching the updated schema
+            $payload = $model | ConvertTo-Json -Depth 5
             
             # Use PUT or POST depending on if it exists, simplified as POST for now
             Invoke-RestMethod -Uri "$BaseUrl/api/v1/models" -Method Post -Headers $headers -Body $payload -ContentType "application/json" -ErrorAction SilentlyContinue | Out-Null
@@ -184,22 +183,27 @@ function Set-OpenWebUITools {
         $headers = @{ "Authorization" = "Bearer $Token" }
 
         $tools = @(
-            @{ Name = "Code Executor"; Description = "Executes code in a secure sandbox" },
-            @{ Name = "Web Page Reader"; Description = "Extracts content from web pages" },
-            @{ Name = "Local File Manager"; Description = "Reads and writes local files" },
-            @{ Name = "Calculator"; Description = "Performs mathematical calculations" },
-            @{ Name = "DateTime Tool"; Description = "Gets current date and time" },
-            @{ Name = "System Info"; Description = "Retrieves system information" },
-            @{ Name = "JSON/YAML Tool"; Description = "Parses and formats JSON/YAML" }
+            @{ name = "Code Executor"; description = "Executes code in a secure sandbox"; content = "def execute_code(code: str) -> str:`n    return 'Code execution not implemented'" },
+            @{ name = "Web Page Reader"; description = "Extracts content from web pages"; content = "def read_webpage(url: str) -> str:`n    return 'Web reading not implemented'" },
+            @{ name = "Local File Manager"; description = "Reads and writes local files"; content = "def manage_file(path: str, action: str) -> str:`n    return 'File management not implemented'" },
+            @{ name = "Calculator"; description = "Performs mathematical calculations"; content = "def calculate(expression: str) -> str:`n    return 'Calculation not implemented'" },
+            @{ name = "DateTime Tool"; description = "Gets current date and time"; content = "import datetime`ndef get_datetime() -> str:`n    return str(datetime.datetime.now())" },
+            @{ name = "System Info"; description = "Retrieves system information"; content = "import platform`ndef get_sys_info() -> str:`n    return platform.platform()" },
+            @{ name = "JSON/YAML Tool"; description = "Parses and formats JSON/YAML"; content = "def parse_data(data: str) -> str:`n    return 'Parsing not implemented'" },
+            @{ name = "Document Formatter"; description = "converts markdown to structured formats"; content = "def format_doc(doc: str, format: str) -> str:`n    return 'Formatting not implemented'" },
+            @{ name = "Diagram Generator"; description = "creates Mermaid diagram code from descriptions"; content = "def generate_diagram(desc: str) -> str:`n    return 'graph TD;\n    A-->B;'" },
+            @{ name = "CSV/Data Analyzer"; description = "basic statistical analysis"; content = "def analyze_csv(data: str) -> str:`n    return 'Analysis not implemented'" },
+            @{ name = "Project Planner"; description = "generates WBS and timelines"; content = "def plan_project(reqs: str) -> str:`n    return 'Planning not implemented'" },
+            @{ name = "Compliance Checker"; description = "checks text against regulatory requirements"; content = "def check_compliance(text: str) -> str:`n    return 'Compliance not implemented'" }
         )
 
         foreach ($tool in $tools) {
-            Write-LogMessage -Message "Configuring tool: $($tool.Name)" -Level "INFO"
+            Write-LogMessage -Message "Configuring tool: $($tool.name)" -Level "INFO"
             $payload = @{
-                name = $tool.Name
-                description = $tool.Description
-                # Tools need specific schema/code definition, simplified here
-            } | ConvertTo-Json
+                name = $tool.name
+                description = $tool.description
+                content = $tool.content
+            } | ConvertTo-Json -Depth 5
             
             Invoke-RestMethod -Uri "$BaseUrl/api/v1/tools" -Method Post -Headers $headers -Body $payload -ContentType "application/json" -ErrorAction SilentlyContinue | Out-Null
         }
@@ -278,25 +282,46 @@ function Set-OpenWebUIPromptLibrary {
         $headers = @{ "Authorization" = "Bearer $Token" }
 
         $prompts = @(
-            @{ Command = "analyze"; Title = "Analyze this code"; Content = "Please analyze the following code, identify any potential bugs, security vulnerabilities, or performance issues, and suggest improvements:`n`n[PASTE_CODE_HERE]" },
-            @{ Command = "eli5"; Title = "Explain like I'm 5"; Content = "Explain the following concept in simple terms, as if you were talking to a 5-year-old:`n`n[CONCEPT]" },
-            @{ Command = "debug"; Title = "Debug this error"; Content = "I am getting the following error. Please explain what it means and provide a step-by-step guide to fix it:`n`n[ERROR_MESSAGE]" },
-            @{ Command = "test"; Title = "Write tests for"; Content = "Write comprehensive unit tests for the following code, covering edge cases and expected behaviors:`n`n[CODE]" },
-            @{ Command = "summarize"; Title = "Summarize this document"; Content = "Provide a concise summary of the following text, highlighting the key points and main takeaways:`n`n[TEXT]" },
-            @{ Command = "compare"; Title = "Compare and contrast"; Content = "Compare and contrast [ITEM_A] and [ITEM_B], highlighting their similarities, differences, pros, and cons." },
-            @{ Command = "audit"; Title = "Security audit"; Content = "Perform a security audit on the following configuration/code and identify any potential vulnerabilities or misconfigurations:`n`n[CONTENT]" },
-            @{ Command = "sql"; Title = "Optimize this SQL"; Content = "Analyze the following SQL query and suggest optimizations to improve its performance:`n`n[QUERY]" },
-            @{ Command = "docs"; Title = "Create API documentation"; Content = "Generate clear and comprehensive API documentation for the following endpoints, including examples:`n`n[ENDPOINTS]" },
-            @{ Command = "brainstorm"; Title = "Brainstorm ideas for"; Content = "Brainstorm 10 creative and diverse ideas for [TOPIC]. Provide a brief description for each idea." }
+            @{ command = "analyze"; title = "Analyze this code"; content = "Please analyze the following code, identify any potential bugs, security vulnerabilities, or performance issues, and suggest improvements:`n`n[PASTE_CODE_HERE]" },
+            @{ command = "eli5"; title = "Explain like I'm 5"; content = "Explain the following concept in simple terms, as if you were talking to a 5-year-old:`n`n[CONCEPT]" },
+            @{ command = "debug"; title = "Debug this error"; content = "I am getting the following error. Please explain what it means and provide a step-by-step guide to fix it:`n`n[ERROR_MESSAGE]" },
+            @{ command = "test"; title = "Write tests for"; content = "Write comprehensive unit tests for the following code, covering edge cases and expected behaviors:`n`n[CODE]" },
+            @{ command = "summarize"; title = "Summarize this document"; content = "Provide a concise summary of the following text, highlighting the key points and main takeaways:`n`n[TEXT]" },
+            @{ command = "compare"; title = "Compare and contrast"; content = "Compare and contrast [ITEM_A] and [ITEM_B], highlighting their similarities, differences, pros, and cons." },
+            @{ command = "audit"; title = "Security audit"; content = "Perform a security audit on the following configuration/code and identify any potential vulnerabilities or misconfigurations:`n`n[CONTENT]" },
+            @{ command = "sql"; title = "Optimize this SQL"; content = "Analyze the following SQL query and suggest optimizations to improve its performance:`n`n[QUERY]" },
+            @{ command = "docs"; title = "Create API documentation"; content = "Generate clear and comprehensive API documentation for the following endpoints, including examples:`n`n[ENDPOINTS]" },
+            @{ command = "brainstorm"; title = "Brainstorm ideas for"; content = "Brainstorm 10 creative and diverse ideas for [TOPIC]. Provide a brief description for each idea." },
+            @{ command = "/swot"; title = "SWOT Analysis"; content = "Analyze [topic/product/strategy] using a structured SWOT framework. Present as a 2x2 table with Strengths, Weaknesses, Opportunities, Threats. Include 3-5 items per quadrant with brief explanations." },
+            @{ command = "/decision-matrix"; title = "Decision Matrix"; content = "Compare [options] against [criteria]. Create a weighted scoring table. Assign weights (1-5) to each criterion, score each option (1-10), calculate weighted totals, and recommend the highest-scoring option with rationale." },
+            @{ command = "/rca"; title = "Root Cause Analysis"; content = "Analyze [problem/incident]. Apply the 5 Whys technique, then create an Ishikawa/Fishbone diagram categorizing causes under: People, Process, Technology, Environment. Identify the root cause and recommend corrective actions." },
+            @{ command = "/risk-assess"; title = "Risk Assessment"; content = "Evaluate risks for [project/initiative]. Create a risk register table with columns: Risk ID, Description, Probability (1-5), Impact (1-5), Risk Score, Mitigation Strategy, Owner. Sort by risk score descending." },
+            @{ command = "/pros-cons"; title = "Pros & Cons Analysis"; content = "Evaluate [decision/option]. List pros and cons with weighted importance (High/Medium/Low). Provide a summary recommendation with confidence level." },
+            @{ command = "/gap-analysis"; title = "Gap Analysis"; content = "Compare current state vs desired state for [area]. Use a table with columns: Category, Current State, Desired State, Gap, Priority, Action Required. Summarize key gaps and a remediation roadmap." },
+            @{ command = "/cost-benefit"; title = "Cost-Benefit Analysis"; content = "Analyze [initiative/investment]. Itemize all costs (one-time + recurring) and benefits (tangible + intangible). Calculate ROI, payback period, and NPV over [timeframe]. Present recommendation." },
+            @{ command = "/rewrite"; title = "Rewrite Content"; content = "Rewrite the following content in a [formal/casual/executive/technical] tone while preserving all key information. Improve clarity, flow, and impact. Highlight any ambiguities found in the original." },
+            @{ command = "/restructure"; title = "Restructure Document"; content = "Restructure this document for maximum clarity and impact. Reorganize sections logically, add proper headings, improve transitions, consolidate redundant content, and add an executive summary at the top." },
+            @{ command = "/summarize-exec"; title = "Executive Summary"; content = "Create a 1-page executive summary of the following. Use bullet points for key findings, bold critical numbers/metrics, and end with 3 actionable recommendations. Write for a C-level audience." },
+            @{ command = "/meeting-notes"; title = "Meeting Notes"; content = "Extract structured meeting notes from the following. Format as: ## Attendees, ## Key Decisions, ## Action Items (with owner and due date), ## Open Questions, ## Next Meeting." },
+            @{ command = "/rfp"; title = "RFP Response"; content = "Generate an RFP response outline for the following requirements. Structure as: Executive Summary, Company Overview, Technical Approach, Implementation Timeline, Pricing Framework, Team & Qualifications, References, Appendices." },
+            @{ command = "/sow"; title = "Statement of Work"; content = "Generate a Statement of Work from these requirements. Include: Project Overview, Scope of Work, Deliverables, Timeline & Milestones, Acceptance Criteria, Assumptions & Constraints, Pricing, Terms & Conditions." },
+            @{ command = "/design-doc"; title = "Technical Design Document"; content = "Create a Technical Design Document for [feature/system]. Include: Overview, Goals & Non-Goals, Background, Detailed Design, API Design, Data Model, Security Considerations, Testing Strategy, Rollout Plan, Open Questions." },
+            @{ command = "/postmortem"; title = "Incident Post-mortem"; content = "Create an incident post-mortem from this information. Format: Incident Summary, Timeline, Root Cause, Impact (users affected, duration, revenue impact), What Went Well, What Went Wrong, Action Items (with owners and deadlines), Lessons Learned." },
+            @{ command = "/runbook"; title = "Operational Runbook"; content = "Create an operational runbook for [system/process]. Include: Overview, Prerequisites, Step-by-Step Procedures, Troubleshooting Guide, Escalation Path, Rollback Procedures, Appendix (commands, URLs, credentials location)." },
+            @{ command = "/qbr"; title = "Quarterly Business Review"; content = "Prepare a Quarterly Business Review from this data. Structure: Executive Summary, Key Metrics (with QoQ trends), Achievements This Quarter, Challenges & Risks, Product Roadmap Updates, Recommendations, Goals for Next Quarter." },
+            @{ command = "/architect"; title = "System Architecture"; content = "Design a system architecture for [requirements]. Include: Context Diagram, Container Diagram (C4), Component interactions, Technology choices with rationale, Scalability considerations, Security boundaries. Use Mermaid diagrams." },
+            @{ command = "/api-design"; title = "API Design"; content = "Design a REST API for [feature/system]. Define: Resource models, Endpoints (method, path, request/response schemas), Authentication, Pagination, Error handling, Rate limiting. Use OpenAPI-style documentation." },
+            @{ command = "/migration-plan"; title = "Migration Plan"; content = "Create a migration plan for [source → target]. Include: Assessment, Risk Analysis, Migration Strategy (Big Bang vs. Phased), Data Mapping, Testing Plan, Rollback Plan, Cutover Checklist, Communication Plan." },
+            @{ command = "/capacity-plan"; title = "Capacity Plan"; content = "Create a capacity plan for [system/infrastructure]. Analyze: Current utilization, Growth projections, Resource requirements (compute, storage, network), Cost projections, Scaling recommendations, Timeline." }
         )
 
         foreach ($prompt in $prompts) {
-            Write-LogMessage -Message "Configuring prompt: $($prompt.Title)" -Level "INFO"
+            Write-LogMessage -Message "Configuring prompt: $($prompt.title)" -Level "INFO"
             $payload = @{
-                command = $prompt.Command
-                title = $prompt.Title
-                content = $prompt.Content
-            } | ConvertTo-Json
+                command = $prompt.command
+                title = $prompt.title
+                content = $prompt.content
+            } | ConvertTo-Json -Depth 5
             
             Invoke-RestMethod -Uri "$BaseUrl/api/v1/prompts" -Method Post -Headers $headers -Body $payload -ContentType "application/json" -ErrorAction SilentlyContinue | Out-Null
         }

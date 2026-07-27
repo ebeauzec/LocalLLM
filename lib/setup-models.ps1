@@ -65,12 +65,20 @@ function Install-CustomModels {
         try { if ($Configuration.CodeModel) { $codeModel = $Configuration.CodeModel } } catch {}
 
         $modelMapping = @{
-            "general-assistant.modelfile" = "localllm-assistant"
-            "reasoning-engine.modelfile"  = "localllm-reasoning"
-            "code-developer.modelfile"    = "localllm-developer"
-            "data-analyst.modelfile"      = "localllm-analyst"
-            "creative-writer.modelfile"   = "localllm-creative"
-            "security-analyst.modelfile"  = "localllm-security"
+            "general-assistant.modelfile"         = "localllm-assistant"
+            "reasoning-engine.modelfile"          = "localllm-reasoning"
+            "code-developer.modelfile"            = "localllm-developer"
+            "data-analyst.modelfile"              = "localllm-analyst"
+            "creative-writer.modelfile"           = "localllm-creative"
+            "security-analyst.modelfile"          = "localllm-security"
+            "solutions-architect.modelfile"       = "localllm-architect"
+            "storage-engineer.modelfile"          = "localllm-storage"
+            "technical-account-manager.modelfile" = "localllm-tam"
+            "devops-engineer.modelfile"           = "localllm-devops"
+            "executive-advisor.modelfile"         = "localllm-executive"
+            "technical-writer.modelfile"          = "localllm-writer"
+            "project-manager.modelfile"           = "localllm-pm"
+            "document-processor.modelfile"        = "localllm-docproc"
         }
 
         foreach ($file in $modelMapping.Keys) {
