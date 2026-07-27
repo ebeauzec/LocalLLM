@@ -340,6 +340,39 @@ function New-SearXNGConfig {
     }
 }
 
+function New-TikaConfig {
+    <#
+    .SYNOPSIS
+        Generates tika-config.xml for the Apache Tika document parser.
+    .DESCRIPTION
+        Creates a basic Tika configuration that enables all parsers.
+        This file MUST exist before docker compose up, or Docker will
+        create a directory at the mount point instead.
+    #>
+    [CmdletBinding()]
+    param()
+    
+    try {
+        $outPath = Join-Path $script:ProjectRoot "config" "tika-config.xml"
+        $configDir = Split-Path $outPath
+        if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
+        
+        $tikaConfig = @'
+<?xml version="1.0" encoding="UTF-8"?>
+<properties>
+  <parsers>
+    <parser class="org.apache.tika.parser.DefaultParser"/>
+  </parsers>
+</properties>
+'@
+        $tikaConfig | Out-File -FilePath $outPath -Encoding UTF8
+        Write-LogMessage "Generated tika-config.xml" -Level Success
+    } catch {
+        Write-LogMessage "Error creating Tika config: $_" -Level Error
+        throw
+    }
+}
+
 function Start-DockerCompose {
     <#
     .SYNOPSIS
@@ -496,6 +529,7 @@ function Start-Deployment {
         New-DockerComposeFile -Config $Config
         New-LiteLLMConfig -Config $Config
         New-EnvironmentFile -Config $Config
+        New-TikaConfig
         
         $features = Get-ConfigValue $Config 'Features' $null
         $hasWebSearch = $false
