@@ -370,6 +370,33 @@ class Pipe:
         # Prepare the Ollama request
         chat_messages = list(messages)  # Copy
 
+        # Handle file attachments — Open WebUI passes file content in body
+        file_contents = []
+        if "files" in body:
+            for file_info in body.get("files", []):
+                if isinstance(file_info, dict):
+                    # Try to get file content from various formats
+                    content = file_info.get("content", "")
+                    name = file_info.get("name", file_info.get("filename", "document"))
+                    if content:
+                        file_contents.append(f"--- Document: {name} ---\n{content}\n--- End of {name} ---")
+
+        # If we have file contents, inject them into the user message
+        if file_contents:
+            file_context = "\n\n".join(file_contents)
+            # Find the last user message and augment it
+            for i in range(len(chat_messages) - 1, -1, -1):
+                if chat_messages[i].get("role") == "user":
+                    original = chat_messages[i].get("content", "")
+                    if isinstance(original, str):
+                        chat_messages[i]["content"] = f"{original}\n\n<attached_documents>\n{file_context}\n</attached_documents>"
+                    break
+            # If document-related, route to document processor
+            if category == "general":
+                category = "document"
+                selected_model = self.valves.POWER_MODEL
+                system_prompt = self.PERSONA_PROMPTS.get("document-processor", "")
+
         # Inject system prompt if we have a persona match
         if system_prompt:
             # Prepend or replace system message
