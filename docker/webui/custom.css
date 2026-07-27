@@ -1,0 +1,178 @@
+/* Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved. */
+
+/* ==========================================================================
+   Open WebUI Premium Dark Theme Overrides
+   Match Dashboard Aesthetics (#0a0a0f background, Purple/Blue Gradients)
+   ========================================================================== */
+
+:root {
+  --bg-dark-base: #0a0a0f;
+  --bg-dark-surface: #12121a;
+  --bg-dark-card: #1a1a28;
+  --bg-dark-hover: #242438;
+  
+  --accent-purple: #7c3aed;
+  --accent-blue: #3b82f6;
+  --accent-indigo: #6366f1;
+  --accent-cyan: #06b6d4;
+  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #8b5cf6 0%, #60a5fa 100%);
+  
+  --border-dark: rgba(255, 255, 255, 0.08);
+  --border-dark-hover: rgba(124, 58, 237, 0.4);
+  
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Base Body & Layout Overrides */
+html, body, .dark, body.dark {
+  background-color: var(--bg-dark-base) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-family) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Background Color Enforcements */
+.bg-gray-900,
+.bg-gray-950,
+.bg-slate-900,
+.bg-slate-950,
+.dark \:bg-gray-900,
+.dark \:bg-gray-950 {
+  background-color: var(--bg-dark-base) !important;
+}
+
+.bg-gray-800,
+.bg-slate-800,
+.dark \:bg-gray-800 {
+  background-color: var(--bg-dark-surface) !important;
+}
+
+.bg-gray-700,
+.bg-slate-700,
+.dark \:bg-gray-700 {
+  background-color: var(--bg-dark-card) !important;
+}
+
+/* Header & Sidebar Backgrounds */
+header, 
+#sidebar,
+.sidebar,
+nav {
+  background-color: var(--bg-dark-surface) !important;
+  border-color: var(--border-dark) !important;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
+}
+
+/* Model Card & Dropdown Styling */
+[data-radix-popper-content-wrapper],
+.model-selector,
+.select-menu,
+.dropdown-content {
+  background: rgba(18, 18, 26, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--border-dark-hover) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(124, 58, 237, 0.15) !important;
+}
+
+.model-card,
+[role="option"],
+.select-item {
+  border-radius: var(--radius-sm) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.model-card:hover,
+[role="option"]:hover,
+.select-item:hover,
+[role="option"][data-highlighted] {
+  background: rgba(124, 58, 237, 0.15) !important;
+  border-color: var(--accent-purple) !important;
+  transform: translateY(-1px);
+}
+
+/* Buttons & Primary Accent Elements */
+button.bg-primary-600,
+button.bg-blue-600,
+button.bg-purple-600,
+.btn-primary,
+[type="submit"] {
+  background: var(--accent-gradient) !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3) !important;
+}
+
+button.bg-primary-600:hover,
+button.bg-blue-600:hover,
+button.bg-purple-600:hover,
+.btn-primary:hover,
+[type="submit"]:hover {
+  background: var(--accent-gradient-hover) !important;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+/* Chat Input Container */
+#chat-input,
+textarea,
+input[type="text"] {
+  background-color: var(--bg-dark-surface) !important;
+  border: 1px solid var(--border-dark) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+#chat-input:focus,
+textarea:focus,
+input[type="text"]:focus {
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25) !important;
+  outline: none !important;
+}
+
+/* Global Transitions */
+a, button, input, select, textarea, div {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Hide 'Powered by Open WebUI' footer text */
+a[href*="open-webui.com"],
+a[href*="github.com/open-webui"],
+.footer-text,
+footer .text-xs,
+div.text-xs.text-center.text-gray-500 {
+  display: none !important;
+}

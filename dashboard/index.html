@@ -1,0 +1,276 @@
+<!-- 
+(c) 2025-2026 Eugene Beauzec. All Rights Reserved.
+LocalLLM Dashboard Portal
+-->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalLLM Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="toast" class="toast">Copied!</div>
+
+    <header id="mainHeader">
+        <div class="logo-container">
+            <svg class="brain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"></path>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"></path>
+            </svg>
+            <h1>LocalLLM</h1>
+        </div>
+        <div class="header-controls">
+            <div id="statusIndicator" class="status-indicator">
+                <span class="dot green"></span> All Systems Operational
+            </div>
+            <button id="themeToggle" class="icon-btn" aria-label="Toggle Theme">
+                <!-- Moon icon -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            <button id="settingsBtn" class="icon-btn" aria-label="Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="container fade-in">
+        <section class="hero">
+            <h2 class="gradient-text">Choose Your AI Expert</h2>
+            <div class="search-bar">
+                <input type="text" id="personaSearch" placeholder="Search personas...">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            
+            <div class="quick-actions">
+                <button id="btnNewChat" class="btn btn-primary" onclick="window.location='/chat'">New Chat</button>
+                <button id="btnUploadDoc" class="btn btn-secondary" onclick="window.location='/chat'">Upload Document</button>
+                <button id="btnQuickPrompts" class="btn btn-secondary">Quick Prompts</button>
+                <button id="btnModelManager" class="btn btn-secondary">Model Manager</button>
+            </div>
+        </section>
+
+        <section id="personasContainer" class="personas-grid-container">
+            <!-- Engineering -->
+            <div class="category">
+                <h3 class="category-title" data-target="cat-eng">🛠️ Engineering <span class="collapse-icon">▼</span></h3>
+                <div id="cat-eng" class="personas-grid">
+                    <div class="persona-card" data-name="Solutions Architect" data-desc="System architecture and design">
+                        <div class="card-icon">🏗️</div>
+                        <h4>Solutions Architect</h4>
+                        <p>System architecture and design</p>
+                        <span class="badge">localllm-architect</span>
+                    </div>
+                    <div class="persona-card" data-name="Storage Engineer" data-desc="Enterprise storage and data management">
+                        <div class="card-icon">💾</div>
+                        <h4>Storage Engineer</h4>
+                        <p>Enterprise storage and data management</p>
+                        <span class="badge">localllm-storage</span>
+                    </div>
+                    <div class="persona-card" data-name="DevOps Engineer" data-desc="CI/CD and infrastructure automation">
+                        <div class="card-icon">⚙️</div>
+                        <h4>DevOps Engineer</h4>
+                        <p>CI/CD and infrastructure automation</p>
+                        <span class="badge">localllm-devops</span>
+                    </div>
+                    <div class="persona-card" data-name="Code Developer" data-desc="Software engineering expert">
+                        <div class="card-icon">💻</div>
+                        <h4>Code Developer</h4>
+                        <p>Software engineering expert</p>
+                        <span class="badge">localllm-developer</span>
+                    </div>
+                    <div class="persona-card" data-name="Security Analyst" data-desc="Cybersecurity expert">
+                        <div class="card-icon">🛡️</div>
+                        <h4>Security Analyst</h4>
+                        <p>Cybersecurity expert</p>
+                        <span class="badge">localllm-security</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis & Research -->
+            <div class="category">
+                <h3 class="category-title" data-target="cat-ana">📊 Analysis & Research <span class="collapse-icon">▼</span></h3>
+                <div id="cat-ana" class="personas-grid">
+                    <div class="persona-card" data-name="Data Analyst" data-desc="Data analysis and visualization">
+                        <div class="card-icon">📊</div>
+                        <h4>Data Analyst</h4>
+                        <p>Data analysis and visualization</p>
+                        <span class="badge">localllm-analyst</span>
+                    </div>
+                    <div class="persona-card" data-name="Reasoning Engine" data-desc="Advanced reasoning and logic">
+                        <div class="card-icon">🧠</div>
+                        <h4>Reasoning Engine</h4>
+                        <p>Advanced reasoning and logic</p>
+                        <span class="badge">localllm-reasoning</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content & Documentation -->
+            <div class="category">
+                <h3 class="category-title" data-target="cat-doc">📝 Content & Documentation <span class="collapse-icon">▼</span></h3>
+                <div id="cat-doc" class="personas-grid">
+                    <div class="persona-card" data-name="Creative Writer" data-desc="Creative and engaging writing">
+                        <div class="card-icon">✍️</div>
+                        <h4>Creative Writer</h4>
+                        <p>Creative and engaging writing</p>
+                        <span class="badge">localllm-creative</span>
+                    </div>
+                    <div class="persona-card" data-name="Technical Writer" data-desc="Clear technical documentation">
+                        <div class="card-icon">📝</div>
+                        <h4>Technical Writer</h4>
+                        <p>Clear technical documentation</p>
+                        <span class="badge">localllm-writer</span>
+                    </div>
+                    <div class="persona-card" data-name="Document Processor" data-desc="Document structuring and analysis">
+                        <div class="card-icon">📄</div>
+                        <h4>Document Processor</h4>
+                        <p>Document structuring and analysis</p>
+                        <span class="badge">localllm-docproc</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Business & Management -->
+            <div class="category">
+                <h3 class="category-title" data-target="cat-biz">💼 Business & Management <span class="collapse-icon">▼</span></h3>
+                <div id="cat-biz" class="personas-grid">
+                    <div class="persona-card" data-name="Technical Account Manager" data-desc="Client relations and guidance">
+                        <div class="card-icon">🤝</div>
+                        <h4>Technical Account Manager</h4>
+                        <p>Client relations and guidance</p>
+                        <span class="badge">localllm-tam</span>
+                    </div>
+                    <div class="persona-card" data-name="Executive Advisor" data-desc="Strategic business guidance">
+                        <div class="card-icon">👔</div>
+                        <h4>Executive Advisor</h4>
+                        <p>Strategic business guidance</p>
+                        <span class="badge">localllm-executive</span>
+                    </div>
+                    <div class="persona-card" data-name="Project Manager" data-desc="Project planning and execution">
+                        <div class="card-icon">📅</div>
+                        <h4>Project Manager</h4>
+                        <p>Project planning and execution</p>
+                        <span class="badge">localllm-pm</span>
+                    </div>
+                    <div class="persona-card" data-name="General Assistant" data-desc="Versatile AI assistant">
+                        <div class="card-icon">🤖</div>
+                        <h4>General Assistant</h4>
+                        <p>Versatile AI assistant</p>
+                        <span class="badge">localllm-assistant</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="systemFooter">
+        <div class="footer-stats" id="footerStats">
+            <span>Ollama: <span class="status-ok">Online</span></span>
+            <span>Models: <span id="statModels">0</span> loaded</span>
+            <span>CPU: <span id="statCpu">Auto</span></span>
+            <span>RAM: <span id="statRam">...</span></span>
+        </div>
+        <div class="footer-copy">
+            © 2025-2026 Eugene Beauzec. All Rights Reserved.
+        </div>
+    </footer>
+
+    <!-- Quick Prompts Modal -->
+    <div id="promptsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Quick Prompts</h3>
+                <button id="closePromptsBtn" class="icon-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="promptSearch" placeholder="Search prompts..." class="search-input">
+                
+                <div class="prompt-category">
+                    <h4>Code & Debug</h4>
+                    <div class="prompt-item" data-prompt="/analyze"><strong>/analyze</strong> Analyze code structure</div>
+                    <div class="prompt-item" data-prompt="/debug"><strong>/debug</strong> Debug code issue</div>
+                    <div class="prompt-item" data-prompt="/test"><strong>/test</strong> Generate unit tests</div>
+                </div>
+                
+                <div class="prompt-category">
+                    <h4>Business</h4>
+                    <div class="prompt-item" data-prompt="/swot"><strong>/swot</strong> SWOT Analysis</div>
+                    <div class="prompt-item" data-prompt="/rca"><strong>/rca</strong> Root Cause Analysis</div>
+                    <div class="prompt-item" data-prompt="/cost-benefit"><strong>/cost-benefit</strong> Cost Benefit Analysis</div>
+                    <div class="prompt-item" data-prompt="/decision-matrix"><strong>/decision-matrix</strong> Decision Matrix</div>
+                    <div class="prompt-item" data-prompt="/risk-assess"><strong>/risk-assess</strong> Risk Assessment</div>
+                    <div class="prompt-item" data-prompt="/pros-cons"><strong>/pros-cons</strong> Pros & Cons</div>
+                    <div class="prompt-item" data-prompt="/gap-analysis"><strong>/gap-analysis</strong> Gap Analysis</div>
+                    <div class="prompt-item" data-prompt="/qbr"><strong>/qbr</strong> Quarterly Business Review</div>
+                </div>
+
+                <div class="prompt-category">
+                    <h4>Documents</h4>
+                    <div class="prompt-item" data-prompt="/rewrite"><strong>/rewrite</strong> Rewrite text</div>
+                    <div class="prompt-item" data-prompt="/restructure"><strong>/restructure</strong> Restructure document</div>
+                    <div class="prompt-item" data-prompt="/summarize-exec"><strong>/summarize-exec</strong> Exec Summary</div>
+                    <div class="prompt-item" data-prompt="/meeting-notes"><strong>/meeting-notes</strong> Meeting Notes</div>
+                    <div class="prompt-item" data-prompt="/rfp"><strong>/rfp</strong> Request for Proposal</div>
+                    <div class="prompt-item" data-prompt="/sow"><strong>/sow</strong> Statement of Work</div>
+                    <div class="prompt-item" data-prompt="/design-doc"><strong>/design-doc</strong> Design Document</div>
+                    <div class="prompt-item" data-prompt="/postmortem"><strong>/postmortem</strong> Incident Postmortem</div>
+                    <div class="prompt-item" data-prompt="/runbook"><strong>/runbook</strong> Operational Runbook</div>
+                </div>
+
+                <div class="prompt-category">
+                    <h4>Architecture</h4>
+                    <div class="prompt-item" data-prompt="/architect"><strong>/architect</strong> Architecture Design</div>
+                    <div class="prompt-item" data-prompt="/api-design"><strong>/api-design</strong> API Design</div>
+                    <div class="prompt-item" data-prompt="/migration-plan"><strong>/migration-plan</strong> Migration Plan</div>
+                    <div class="prompt-item" data-prompt="/capacity-plan"><strong>/capacity-plan</strong> Capacity Plan</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Slide-in Panel -->
+    <div id="settingsPanel" class="slide-panel">
+        <div class="panel-header">
+            <h3>Settings</h3>
+            <button id="closeSettingsBtn" class="icon-btn">×</button>
+        </div>
+        <div class="panel-body">
+            <div class="setting-group">
+                <label>Default Model</label>
+                <select id="defaultModelSelect" class="form-select">
+                    <option value="">Loading models...</option>
+                </select>
+            </div>
+            
+            <div class="setting-group">
+                <label>Knowledge Sources</label>
+                <ul id="knowledgeList" class="knowledge-list">
+                    <li>Local Docs <button class="btn-small btn-remove">×</button></li>
+                    <li>Codebase <button class="btn-small btn-remove">×</button></li>
+                </ul>
+                <button class="btn btn-secondary btn-full">Add Source</button>
+            </div>
+
+            <div class="setting-group">
+                <label>System Info</label>
+                <div class="sys-info">
+                    LocalLLM Core v2.4.1<br>
+                    Engine: Ollama<br>
+                    UI: Open WebUI
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-full mt-auto" onclick="window.location='/chat/admin'">Open WebUI Admin</button>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
