@@ -54,9 +54,9 @@ litellm_settings:
   # The router will only use cloud when local is unavailable or errors out.
 
 router_settings:
-  # cost-based-routing-v2: Routes to cheapest available model first
-  # Since local models cost $0, they are ALWAYS preferred over cloud
-  routing_strategy: "cost-based-routing-v2"
+  # cost-based-routing: Routes to cheapest available model first
+  # (local Ollama models are free, cloud APIs cost money)
+  routing_strategy: "cost-based-routing"
 
   # Number of retries before falling back to next model
   num_retries: 3
