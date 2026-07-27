@@ -406,11 +406,11 @@ function Start-DockerCompose {
         }
     }
     
-    # Step 2: Start services
+    # Step 2: Start services (--force-recreate ensures fresh bind mounts)
     try {
         Write-LogMessage "Starting Docker Compose services..." -Level Step
         Push-Location $script:ProjectRoot
-        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" up -d" -Wait -NoNewWindow -PassThru
+        $process = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" up -d --force-recreate" -Wait -NoNewWindow -PassThru
         Pop-Location
         
         if ($process.ExitCode -ne 0) {
