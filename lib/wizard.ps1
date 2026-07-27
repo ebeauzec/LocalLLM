@@ -486,6 +486,8 @@ function Start-ConfigurationWizard {
             OllamaPort     = $ports.OllamaPort
             LiteLLMPort    = $ports.LiteLLMPort
             SearXNGPort    = 8888
+            TikaPort       = 9998
+            PipelinesPort  = 9099
             TotalDownloadGB = 0
         }
 

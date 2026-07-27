@@ -44,18 +44,24 @@ function New-DockerComposeFile {
         
         $content = Get-Content -Path $templatePath -Raw
         
-        # Replace basic variables
-        $content = $content -replace '\{\{OLLAMA_PORT\}\}', $Config.OllamaPort
-        $content = $content -replace '\{\{LITELLM_PORT\}\}', $Config.LiteLLMPort
-        $content = $content -replace '\{\{WEBUI_PORT\}\}', $Config.WebUIPort
-        $content = $content -replace '\{\{SEARXNG_PORT\}\}', ($Config.SearXNGPort ?? 8888)
-        $content = $content -replace '\{\{TIKA_PORT\}\}', ($Config.TikaPort ?? 9998)
-        $content = $content -replace '\{\{PIPELINES_PORT\}\}', 9099
+        # Safe config value accessor — PSCustomObject from JSON may not have all properties
+        function Get-ConfigValue($Obj, $Prop, $Default) {
+            try { $val = $Obj.$Prop; if ($null -ne $val) { return $val } } catch {}
+            return $Default
+        }
+        
+        # Replace basic variables with safe defaults
+        $content = $content -replace '\{\{OLLAMA_PORT\}\}', (Get-ConfigValue $Config 'OllamaPort' 11434)
+        $content = $content -replace '\{\{LITELLM_PORT\}\}', (Get-ConfigValue $Config 'LiteLLMPort' 4000)
+        $content = $content -replace '\{\{WEBUI_PORT\}\}', (Get-ConfigValue $Config 'WebUIPort' 3000)
+        $content = $content -replace '\{\{SEARXNG_PORT\}\}', (Get-ConfigValue $Config 'SearXNGPort' 8888)
+        $content = $content -replace '\{\{TIKA_PORT\}\}', (Get-ConfigValue $Config 'TikaPort' 9998)
+        $content = $content -replace '\{\{PIPELINES_PORT\}\}', (Get-ConfigValue $Config 'PipelinesPort' 9099)
         $content = $content -replace '\{\{DATA_PATH\}\}', './data'
         $content = $content -replace '\{\{CONFIG_PATH\}\}', './config'
         
         # Accelerator Config Section
-        $accelConfig = $Config.AcceleratorConfig
+        $accelConfig = Get-ConfigValue $Config 'AcceleratorConfig' $null
         if (-not $accelConfig) {
             # Fallback if not provided
             $accelConfig = @{
@@ -64,7 +70,7 @@ function New-DockerComposeFile {
                 DockerDevices = @()
                 DockerGPUDeploy = $null
             }
-            if ($Config.UseGPU) {
+            if (Get-ConfigValue $Config 'UseGPU' $false) {
                 $accelConfig.DockerGPUDeploy = @"
     deploy:
       resources:
@@ -81,8 +87,16 @@ function New-DockerComposeFile {
         
         $envVars = ""
         if ($accelConfig.OllamaEnvVars) {
-            foreach ($key in $accelConfig.OllamaEnvVars.Keys) {
-                $envVars += "      - $key=$($accelConfig.OllamaEnvVars[$key])`n"
+            $envObj = $accelConfig.OllamaEnvVars
+            if ($envObj -is [hashtable]) {
+                foreach ($key in $envObj.Keys) {
+                    $envVars += "      - $key=$($envObj[$key])`n"
+                }
+            } else {
+                # PSCustomObject from JSON deserialization
+                foreach ($prop in $envObj.PSObject.Properties) {
+                    $envVars += "      - $($prop.Name)=$($prop.Value)`n"
+                }
             }
         }
         $content = $content -replace '\{\{OLLAMA_ENV_VARS\}\}', $envVars.TrimEnd()
