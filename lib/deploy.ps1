@@ -514,6 +514,14 @@ function Start-Deployment {
             New-Item -ItemType Directory -Path $configDir | Out-Null
         }
         
+        # Stop any existing containers first — Docker caches stale volume mounts
+        # from previous runs. Must destroy containers before regenerating configs.
+        $composePath = Join-Path $configDir "docker-compose.yml"
+        if (Test-Path $composePath) {
+            Write-LogMessage "Stopping existing containers..." -Level Info
+            $proc = Start-Process -FilePath "docker" -ArgumentList "compose -f `"$composePath`" --project-directory `"$($script:ProjectRoot)`" down" -Wait -NoNewWindow -PassThru 2>$null
+        }
+        
         # Clean up stale Docker-created directories (Docker mounts missing files as dirs)
         $staleTargets = @(
             (Join-Path $configDir 'litellm_config.yaml'),
