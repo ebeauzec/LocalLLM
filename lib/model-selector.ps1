@@ -227,7 +227,15 @@ function Get-RecommendedModels {
         }
     }
     
-    return $recommended | Select-Object -Unique -Property Name
+    $result = @($recommended | Select-Object -Unique -Property Name)
+    
+    # Add llava:7b as a supplementary model for image analysis / vision capabilities
+    $systemRAM = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB
+    if ($systemRAM -ge 8) {
+        $result += @{ Name = 'llava:7b' }
+    }
+    
+    return $result
 }
 
 function Show-ModelSelection {

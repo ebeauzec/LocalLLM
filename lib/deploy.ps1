@@ -49,6 +49,7 @@ function New-DockerComposeFile {
         $content = $content -replace '\{\{LITELLM_PORT\}\}', $Config.LiteLLMPort
         $content = $content -replace '\{\{WEBUI_PORT\}\}', $Config.WebUIPort
         $content = $content -replace '\{\{SEARXNG_PORT\}\}', ($Config.SearXNGPort ?? 8888)
+        $content = $content -replace '\{\{TIKA_PORT\}\}', ($Config.TikaPort ?? 9998)
         $content = $content -replace '\{\{PIPELINES_PORT\}\}', 9099
         $content = $content -replace '\{\{DATA_PATH\}\}', './data'
         $content = $content -replace '\{\{CONFIG_PATH\}\}', './config'
@@ -79,6 +80,16 @@ function New-DockerComposeFile {
         } else {
             $content = $content -replace '(?s)\{\{PIPELINES_SECTION_START\}\}.*?\{\{PIPELINES_SECTION_END\}\}', ''
             $content = $content -replace '\{\{PIPELINES_ENV\}\}', ''
+        }
+        
+        # Tika section
+        if ($Config.Features.RAG) {
+            $content = $content -replace '\{\{TIKA_SECTION_START\}\}', ''
+            $content = $content -replace '\{\{TIKA_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{TIKA_ENV\}\}', "- CONTENT_EXTRACTION_ENGINE=tika`n      - TIKA_SERVER_URL=http://tika:9998"
+        } else {
+            $content = $content -replace '(?s)\{\{TIKA_SECTION_START\}\}.*?\{\{TIKA_SECTION_END\}\}', ''
+            $content = $content -replace '\{\{TIKA_ENV\}\}', ''
         }
         
         # Cloud Keys Env
@@ -254,8 +265,19 @@ function Install-OllamaModels {
     
     try {
         Write-LogMessage "Pulling selected models..." -Level Step
+        
+        $modelsToPull = @()
         foreach ($model in $Config.SelectedModels) {
-            $modelName = if ($model -is [string]) { $model } else { $model.Name }
+            $modelsToPull += if ($model -is [string]) { $model } else { $model.Name }
+        }
+        
+        # Pull llava:7b as vision model if system has >= 8GB RAM
+        $systemRAM = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB
+        if ($systemRAM -ge 8 -and 'llava:7b' -notin $modelsToPull) {
+            $modelsToPull += 'llava:7b'
+        }
+
+        foreach ($modelName in $modelsToPull) {
             Write-Host "Pulling model: $modelName" -ForegroundColor Cyan
             $process = Start-Process -FilePath "docker" -ArgumentList "exec localllm-ollama ollama pull $modelName" -Wait -NoNewWindow -PassThru
             if ($process.ExitCode -ne 0) {

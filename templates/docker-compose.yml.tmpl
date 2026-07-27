@@ -114,6 +114,9 @@ services:
       # ── Pipelines Server ──
       {{PIPELINES_ENV}}
 
+      # ── Document Processing (Tika) ──
+      {{TIKA_ENV}}
+
       # ── UI Configuration ──
       - DEFAULT_LOCALE=en
       - WEBUI_NAME=LocalLLM
@@ -155,6 +158,30 @@ services:
     networks:
       - localllm-network
   {{PIPELINES_SECTION_END}}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # TIKA — Universal Document Parser & OCR Engine
+  # Parses 100+ document formats locally. No data leaves this container.
+  # Supports: PDF, Word, Excel, PowerPoint, images (OCR), HTML, and more.
+  # ──────────────────────────────────────────────────────────────────────────
+  {{TIKA_SECTION_START}}
+  tika:
+    image: apache/tika:latest-full
+    container_name: localllm-tika
+    ports:
+      - "{{TIKA_PORT}}:9998"
+    volumes:
+      - "{{CONFIG_PATH}}/tika-config.xml:/tika-config.xml"
+    command: ["--config", "/tika-config.xml"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9998/tika || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - localllm-network
+  {{TIKA_SECTION_END}}
 
   # ──────────────────────────────────────────────────────────────────────────
   # SEARXNG — Private Web Search Engine

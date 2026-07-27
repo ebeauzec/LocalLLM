@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.0] - 2026-07-27
+
+### Added — Document Intelligence & Privacy Pipeline
+- **Apache Tika integration**: 100+ document format parsing (PDF, Word, Excel, PPT, images, HTML, EPUB, email, archives)
+- **Local OCR**: Tesseract-powered OCR for scanned documents and images via Tika full image
+- **Vision model**: LLaVA 7B auto-installed for local image analysis (diagrams, charts, photos)
+- **Privacy audit filter pipeline**: Intercepts ALL requests, detects sensitive data, enforces privacy modes
+  - STRICT: Blocks all cloud requests
+  - BALANCED: Scans for PII, warns before cloud sends
+  - PERMISSIVE: Auto-redacts sensitive data before cloud transmission
+- **In-chat privacy dashboard**: View cloud usage, sensitive data reports, and data flow summaries directly in chat
+- **Document Parser tool**: Universal format parsing via Tika with OCR and metadata extraction
+- **Image Analyzer tool**: Local vision analysis with privacy-aware cloud fallback and full audit logging
+- **Privacy Dashboard tool**: Real-time privacy reporting in the chat interface
+- **Tika Docker service**: Added to Docker Compose with health checks and custom configuration
+- **Cloud response notices**: Discreet privacy notices appended to cloud-sourced responses
+- **docs/DOCUMENT_PROCESSING.md**: Comprehensive document processing guide
+- **tika-config.xml**: OCR-optimized Tika configuration
+
+### Changed
+- Docker Compose template: Added Tika service, Tika environment variables
+- deploy.ps1: Added Tika placeholder handling and vision model pull
+- model-selector.ps1: Auto-includes LLaVA for systems with ≥ 8GB RAM
+- VERSION bumped to 0.5.0
+- Docker services: now 6 (Ollama, LiteLLM, Open WebUI, Pipelines, Tika, SearXNG)
+
 ## [v0.4.0] - 2026-07-27
 
 ### Added — Multi-Platform, Lifecycle & Automation

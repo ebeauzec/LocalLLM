@@ -57,6 +57,19 @@ LocalLLM is a one-command installer that gives you a local AI assistant comparab
 | 🕐 **DateTime Tool** | Date calculations, timezone conversions |
 | 💻 **System Info** | Monitor CPU, memory, disk, GPU |
 | 📋 **JSON/YAML Tool** | Parse, convert, query structured data |
+| 📄 **Document Parser** | Parse 100+ formats: PDF, Word, Excel, PPT, images (OCR) |
+| 👁️ **Image Analyzer** | Vision analysis via local LLaVA model, with cloud fallback |
+| 🔒 **Privacy Dashboard** | Audit cloud usage, view sensitive data reports in-chat |
+
+### 📄 Document Intelligence
+- **100+ format support** via Apache Tika: PDF, Word, Excel, PowerPoint, images, HTML, EPUB, archives, email, and more
+- **Local OCR** for scanned documents and images via Tesseract
+- **Vision analysis** using local LLaVA model for diagrams, charts, photos
+- **Privacy-aware cloud fallback** — only when local processing fails, with full audit logging
+- **Automatic sensitive data detection** — credit cards, SSNs, API keys blocked from cloud APIs
+- **In-chat privacy dashboard** — view exactly what was sent where and when
+
+> 📖 See [DOCUMENT_PROCESSING.md](docs/DOCUMENT_PROCESSING.md) for the complete document processing guide.
 
 ### Advanced Features
 - **🧠 Thinking/Reasoning** — Visible chain-of-thought with collapsible thinking blocks
