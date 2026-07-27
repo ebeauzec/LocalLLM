@@ -137,7 +137,14 @@ function Repair-Service {
     param($FailedTest)
     
     Write-Host "Attempting auto-fix for $($FailedTest.Name)..." -ForegroundColor Yellow
-    $FailedTest.AutoFixAttempted = $true
+    if (-not $FailedTest.PSObject.Properties['AutoFixAttempted']) {
+        $FailedTest | Add-Member -NotePropertyName 'AutoFixAttempted' -NotePropertyValue $true -Force
+    } else {
+        $FailedTest.AutoFixAttempted = $true
+    }
+    if (-not $FailedTest.PSObject.Properties['AutoFixResult']) {
+        $FailedTest | Add-Member -NotePropertyName 'AutoFixResult' -NotePropertyValue $null -Force
+    }
     
     try {
         switch ($FailedTest.Name) {
@@ -192,12 +199,15 @@ function Show-HealthReport {
     
     $tableData = @()
     foreach ($r in $Results) {
-        $icon = if ($r.Status -eq "Pass") { "✅" } elseif ($r.Status -eq "Warning") { "⚠️" } else { "❌" }
+        $status = if ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
+        $icon = if ($status -eq 'Pass') { '✅' } elseif ($status -eq 'Warning') { '⚠️' } else { '❌' }
+        $autoFixAttempted = if ($r.PSObject.Properties['AutoFixAttempted']) { $r.AutoFixAttempted } else { $false }
+        $autoFixResult = if ($r.PSObject.Properties['AutoFixResult']) { $r.AutoFixResult } else { 'N/A' }
         $tableData += [PSCustomObject]@{
-            Status = "$icon $($r.Status)"
+            Status = "$icon $status"
             Component = $r.Name
             Details = $r.Message
-            AutoFix = if ($r.AutoFixAttempted) { $r.AutoFixResult } else { "N/A" }
+            AutoFix = if ($autoFixAttempted) { $autoFixResult } else { 'N/A' }
         }
     }
     
@@ -214,12 +224,22 @@ function Invoke-HealthCheck {
         
         # If docker isn't running, auto-fix it immediately before proceeding
         $dockerCheck = $results[0]
-        if ($dockerCheck.Status -ne "Pass" -and $dockerCheck.AutoFixAvailable) {
+        $dockerStatus = if ($dockerCheck.PSObject.Properties['Status']) { $dockerCheck.Status } else { 'Unknown' }
+        $dockerAutoFix = if ($dockerCheck.PSObject.Properties['AutoFixAvailable']) { $dockerCheck.AutoFixAvailable } else { $false }
+        if ($dockerStatus -ne "Pass" -and $dockerAutoFix) {
             Repair-Service -FailedTest $dockerCheck
             # Re-test docker
             $dockerCheck2 = Test-DockerRunning
-            $dockerCheck2.AutoFixAttempted = $true
-            $dockerCheck2.AutoFixResult = $dockerCheck.AutoFixResult
+            if (-not $dockerCheck2.PSObject.Properties['AutoFixAttempted']) {
+                $dockerCheck2 | Add-Member -NotePropertyName 'AutoFixAttempted' -NotePropertyValue $true -Force
+            } else {
+                $dockerCheck2.AutoFixAttempted = $true
+            }
+            if (-not $dockerCheck2.PSObject.Properties['AutoFixResult']) {
+                $dockerCheck2 | Add-Member -NotePropertyName 'AutoFixResult' -NotePropertyValue $dockerCheck.AutoFixResult -Force
+            } else {
+                $dockerCheck2.AutoFixResult = $dockerCheck.AutoFixResult
+            }
             $results[0] = $dockerCheck2
         }
         
@@ -233,7 +253,10 @@ function Invoke-HealthCheck {
         $results += Test-GPUAccess
         
         foreach ($r in $results) {
-            if (($r.Status -eq "Fail" -or $r.Status -eq "Warning") -and $r.AutoFixAvailable -and -not $r.AutoFixAttempted) {
+            $status = if ($r.PSObject.Properties['Status']) { $r.Status } else { 'Unknown' }
+            $autoFixAvailable = if ($r.PSObject.Properties['AutoFixAvailable']) { $r.AutoFixAvailable } else { $false }
+            $autoFixAttempted = if ($r.PSObject.Properties['AutoFixAttempted']) { $r.AutoFixAttempted } else { $false }
+            if (($status -eq 'Fail' -or $status -eq 'Warning') -and $autoFixAvailable -and -not $autoFixAttempted) {
                 Repair-Service -FailedTest $r
             }
         }
