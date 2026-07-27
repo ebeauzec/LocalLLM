@@ -53,19 +53,19 @@ $Version = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() 
 # Quick actions: --Stop, --Status, --Analytics, --Uninstall
 # ---------------------------------------------------------------------------
 if ($Stop) {
-    & "$ProjectRoot\localllm.ps1" stop
+    & (Join-Path $ProjectRoot 'localllm.ps1') stop
     exit 0
 }
 if ($Status) {
-    & "$ProjectRoot\localllm.ps1" status
+    & (Join-Path $ProjectRoot 'localllm.ps1') status
     exit 0
 }
 if ($Analytics) {
-    & "$ProjectRoot\localllm.ps1" analytics
+    & (Join-Path $ProjectRoot 'localllm.ps1') analytics
     exit 0
 }
 if ($Uninstall) {
-    & "$ProjectRoot\localllm.ps1" uninstall
+    & (Join-Path $ProjectRoot 'localllm.ps1') uninstall
     exit 0
 }
 
@@ -99,7 +99,7 @@ if (-not $isInstalled) {
         exit 0
     }
     
-    & "$ProjectRoot\install.ps1"
+    & (Join-Path $ProjectRoot 'install.ps1')
     exit $LASTEXITCODE
 }
 
@@ -134,7 +134,7 @@ if ($alreadyRunning) {
 }
 
 # Start services
-& "$ProjectRoot\localllm.ps1" start
+& (Join-Path $ProjectRoot 'localllm.ps1') start
 
 Write-Host ""
 Write-Host "  ╔══════════════════════════════════════════════════════╗" -ForegroundColor Green
