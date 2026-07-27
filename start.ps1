@@ -123,9 +123,16 @@ function Write-ClickableURL {
     param([string]$URL, [string]$Label)
     if (-not $Label) { $Label = $URL }
     # OSC 8 hyperlink: supported by Windows Terminal, iTerm2, etc.
+    # Build the string with concatenation to avoid backslash-quote parser issues
     $esc = [char]27
-    Write-Host "  🌐 ${esc}]8;;${URL}${esc}\${Label}${esc}]8;;${esc}\" " -ForegroundColor Cyan -NoNewline
-    Write-Host "(click to open)" -ForegroundColor DarkGray
+    $bsl = [char]92  # backslash
+    $linkStart = "$esc]8;;${URL}$esc$bsl"
+    $linkEnd   = "$esc]8;;$esc$bsl"
+    $line = "  $([char]0x1F310) ${linkStart}${Label}${linkEnd}"
+    Write-Host $line -ForegroundColor Cyan -NoNewline
+    Write-Host " (click to open)" -ForegroundColor DarkGray
+    # Also print plain URL for terminals that don't support OSC 8
+    Write-Host "     $URL" -ForegroundColor DarkCyan
 }
 
 # Check if services are already running
@@ -148,7 +155,7 @@ if ($alreadyRunning) {
     
     # Auto-open browser
     Start-Process $localURL
-    Write-Host "  ✅ Browser opened automatically." -ForegroundColor Green
+    Write-Host "  [OK] Browser opened automatically." -ForegroundColor Green
     Write-Host ""
     Write-Host "  Your conversations, uploads, and settings are all here." -ForegroundColor Gray
     Write-Host "  To stop:       .\start.ps1 -Stop" -ForegroundColor DarkGray
@@ -180,5 +187,5 @@ Write-Host ""
 
 # Auto-open browser
 Start-Process $localURL
-Write-Host "  ✅ Browser opened automatically." -ForegroundColor Green
+Write-Host "  [OK] Browser opened automatically." -ForegroundColor Green
 Write-Host ""

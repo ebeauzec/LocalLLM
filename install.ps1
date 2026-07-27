@@ -510,8 +510,13 @@ function Start-Installation {
         Write-Host "  ╠══════════════════════════════════════════════════════════╣" -ForegroundColor Green
         Write-Host "  ║                                                          ║" -ForegroundColor Green
         Write-Host "  ║   🌐 Open your AI assistant:                             ║" -ForegroundColor White
-        Write-Host "  ║      ${esc}]8;;${localURL}${esc}\${localURL}${esc}]8;;${esc}\" " -ForegroundColor Cyan -NoNewline
+        $bsl = [char]92
+        $linkStart = "$esc]8;;${localURL}$esc$bsl"
+        $linkEnd   = "$esc]8;;$esc$bsl"
+        Write-Host "  ║      ${linkStart}${localURL}${linkEnd}" -ForegroundColor Cyan -NoNewline
         Write-Host "                        ║" -ForegroundColor Green
+        Write-Host "  ║      $localURL" -ForegroundColor DarkCyan -NoNewline
+        Write-Host "                             ║" -ForegroundColor Green
         Write-Host "  ║                                                          ║" -ForegroundColor Green
         Write-Host "  ║   📋 First-time setup:                                   ║" -ForegroundColor White
         Write-Host "  ║      1. Browser will open automatically                  ║" -ForegroundColor Gray
