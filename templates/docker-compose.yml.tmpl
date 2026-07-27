@@ -20,21 +20,15 @@ services:
   # Runs AI models entirely on your hardware. No data leaves this container.
   # ──────────────────────────────────────────────────────────────────────────
   ollama:
-    image: ollama/ollama:latest
+    image: {{OLLAMA_IMAGE}}
     container_name: localllm-ollama
     ports:
       - "{{OLLAMA_PORT}}:11434"
     volumes:
       - "{{DATA_PATH}}/ollama:/root/.ollama"
-    {{GPU_SECTION_START}}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    {{GPU_SECTION_END}}
+    environment:
+{{OLLAMA_ENV_VARS}}
+{{ACCELERATOR_BLOCK}}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:11434/ || exit 1"]

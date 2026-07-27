@@ -54,13 +54,55 @@ function New-DockerComposeFile {
         $content = $content -replace '\{\{DATA_PATH\}\}', './data'
         $content = $content -replace '\{\{CONFIG_PATH\}\}', './config'
         
-        # GPU section
-        if ($Config.UseGPU) {
-            $content = $content -replace '\{\{GPU_SECTION_START\}\}', ''
-            $content = $content -replace '\{\{GPU_SECTION_END\}\}', ''
-        } else {
-            $content = $content -replace '(?s)\{\{GPU_SECTION_START\}\}.*?\{\{GPU_SECTION_END\}\}', ''
+        # Accelerator Config Section
+        $accelConfig = $Config.AcceleratorConfig
+        if (-not $accelConfig) {
+            # Fallback if not provided
+            $accelConfig = @{
+                OllamaImage = 'ollama/ollama:latest'
+                OllamaEnvVars = @{ OLLAMA_NUM_THREADS = 4 }
+                DockerDevices = @()
+                DockerGPUDeploy = $null
+            }
+            if ($Config.UseGPU) {
+                $accelConfig.DockerGPUDeploy = @"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"@
+            }
         }
+        
+        $content = $content -replace '\{\{OLLAMA_IMAGE\}\}', $accelConfig.OllamaImage
+        
+        $envVars = ""
+        if ($accelConfig.OllamaEnvVars) {
+            foreach ($key in $accelConfig.OllamaEnvVars.Keys) {
+                $envVars += "      - $key=$($accelConfig.OllamaEnvVars[$key])`n"
+            }
+        }
+        $content = $content -replace '\{\{OLLAMA_ENV_VARS\}\}', $envVars.TrimEnd()
+        
+        $accelBlock = ""
+        if ($accelConfig.DockerDevices -and $accelConfig.DockerDevices.Count -gt 0) {
+            $accelBlock += "    devices:`n"
+            foreach ($dev in $accelConfig.DockerDevices) {
+                $accelBlock += "      - $dev:$dev`n"
+            }
+        }
+        if ($accelConfig.DockerGPUDeploy) {
+            $accelBlock += $accelConfig.DockerGPUDeploy + "`n"
+        }
+        
+        $content = $content -replace '\{\{ACCELERATOR_BLOCK\}\}', $accelBlock.TrimEnd()
+        
+        # Cleanup old GPU section tokens just in case
+        $content = $content -replace '\{\{GPU_SECTION_START\}\}', ''
+        $content = $content -replace '\{\{GPU_SECTION_END\}\}', ''
         
         # Web Search section
         if ($Config.Features.WebSearch) {

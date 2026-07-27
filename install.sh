@@ -91,33 +91,123 @@ save_state() {
     echo "{\"step\":$CURRENT_STEP}" > "$STATE_FILE"
 }
 
-# Step 1: System Assessment
+# Step 1: System Assessment — GPU, NPU, CPU, RAM detection
 step_assessment() {
     echo -e "\n${BLUE}=== Step 1: System Assessment ===${NC}"
     echo -e "Platform: $OS ($DISTRO)"
-    
+
+    # ── CPU Detection ──
     if [ "$DISTRO" = "macos" ]; then
         CPU_INFO=$(sysctl -n machdep.cpu.brand_string)
+        CPU_CORES=$(sysctl -n hw.physicalcpu)
+        CPU_THREADS=$(sysctl -n hw.logicalcpu)
         RAM_BYTES=$(sysctl -n hw.memsize)
         RAM_GB=$(( RAM_BYTES / 1073741824 ))
-        GPU_INFO=$(system_profiler SPDisplaysDataType | grep "Chipset Model" || echo "Unknown GPU")
     else
         CPU_INFO=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
+        CPU_CORES=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo 4)
+        CPU_THREADS=$CPU_CORES
+        # Physical cores (if hyperthreading)
+        PHYS_CORES=$(grep "^cpu cores" /proc/cpuinfo | head -1 | awk '{print $4}' 2>/dev/null)
+        [ -n "$PHYS_CORES" ] && CPU_CORES=$PHYS_CORES
         RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
         RAM_GB=$(( RAM_KB / 1048576 ))
-        if command -v nvidia-smi &> /dev/null; then
-            GPU_INFO="NVIDIA $(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1)"
-        elif command -v rocm-smi &> /dev/null; then
-            GPU_INFO="AMD GPU"
-        else
-            GPU_INFO="No discrete GPU detected or drivers missing"
-        fi
     fi
-    
-    echo -e "CPU: $CPU_INFO"
-    echo -e "RAM: ${RAM_GB}GB"
-    echo -e "GPU: $GPU_INFO"
-    
+
+    # ── GPU Detection ──
+    GPU_VENDOR="none"
+    GPU_INFO="No discrete GPU detected"
+    OLLAMA_IMAGE="ollama/ollama:latest"
+    GPU_DEVICES=""
+    GPU_ENV=""
+
+    # NVIDIA
+    if command -v nvidia-smi &> /dev/null; then
+        GPU_INFO="NVIDIA $(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1)"
+        GPU_VRAM=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -n1 | tr -d ' ')
+        GPU_VRAM_GB=$(( GPU_VRAM / 1024 ))
+        GPU_VENDOR="nvidia"
+        echo -e "${GREEN}  ✅ NVIDIA GPU: $GPU_INFO (${GPU_VRAM_GB}GB VRAM)${NC}"
+
+    # AMD ROCm
+    elif command -v rocm-smi &> /dev/null; then
+        GPU_INFO="AMD $(rocm-smi --showproductname 2>/dev/null | grep 'GPU' | head -1 | awk -F: '{print $2}' | sed 's/^ //' || echo 'GPU')"
+        GPU_VRAM_GB=$(rocm-smi --showmeminfo vram 2>/dev/null | grep 'Total' | head -1 | awk '{print int($3/1024/1024/1024)}' || echo 0)
+        GPU_VENDOR="amd-rocm"
+        OLLAMA_IMAGE="ollama/ollama:rocm"
+        GPU_DEVICES="/dev/kfd /dev/dri"
+        GPU_ENV="HSA_OVERRIDE_GFX_VERSION=11.0.0"
+        echo -e "${GREEN}  ✅ AMD GPU (ROCm): $GPU_INFO${NC}"
+
+    # AMD without ROCm drivers
+    elif lspci 2>/dev/null | grep -qi 'AMD.*VGA\|Radeon'; then
+        GPU_INFO="AMD $(lspci | grep -i 'VGA.*AMD\|VGA.*Radeon' | head -1 | sed 's/.*: //')"
+        GPU_VENDOR="amd-no-rocm"
+        echo -e "${YELLOW}  ⚠️  AMD GPU detected but ROCm not installed: $GPU_INFO${NC}"
+        echo -e "${YELLOW}     Install ROCm for GPU acceleration: https://rocm.docs.amd.com${NC}"
+
+    # Intel Arc
+    elif lspci 2>/dev/null | grep -qi 'Intel.*VGA.*Arc\|Intel.*Display'; then
+        GPU_INFO="Intel $(lspci | grep -i 'VGA.*Intel' | head -1 | sed 's/.*: //')"
+        GPU_VENDOR="intel"
+        echo -e "${YELLOW}  ⚠️  Intel GPU: $GPU_INFO (limited Ollama support)${NC}"
+
+    # macOS Apple Silicon
+    elif [ "$DISTRO" = "macos" ]; then
+        GPU_INFO=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed 's/.*: //')
+        if echo "$CPU_INFO" | grep -qi "Apple M"; then
+            GPU_VENDOR="apple-metal"
+            echo -e "${GREEN}  ✅ Apple Silicon: $GPU_INFO (Metal acceleration, native)${NC}"
+        fi
+    else
+        echo -e "${GRAY}  No GPU acceleration available (CPU-only mode)${NC}"
+    fi
+
+    # ── NPU Detection (Linux) ──
+    NPU_INFO=""
+    if [ "$DISTRO" != "macos" ]; then
+        # AMD XDNA NPU
+        if lspci 2>/dev/null | grep -qi 'AMD.*NPU\|XDNA\|Phoenix.*AI\|Ryzen.*AI'; then
+            NPU_INFO="AMD XDNA NPU"
+        fi
+        # Intel NPU
+        if [ -d /dev/accel ] || ls /sys/class/intel_npu/ 2>/dev/null; then
+            NPU_INFO="Intel NPU"
+        fi
+    elif [ "$DISTRO" = "macos" ] && echo "$CPU_INFO" | grep -qi "Apple M"; then
+        NPU_INFO="Apple Neural Engine"
+    fi
+
+    # ── Ollama Performance Tuning ──
+    OLLAMA_NUM_THREADS=$CPU_CORES
+    OLLAMA_NUM_PARALLEL=$(( CPU_CORES / 4 ))
+    [ "$OLLAMA_NUM_PARALLEL" -lt 1 ] && OLLAMA_NUM_PARALLEL=1
+    [ "$OLLAMA_NUM_PARALLEL" -gt 4 ] && OLLAMA_NUM_PARALLEL=4
+    OLLAMA_MAX_MODELS=$(( RAM_GB / 16 ))
+    [ "$OLLAMA_MAX_MODELS" -lt 1 ] && OLLAMA_MAX_MODELS=1
+    [ "$OLLAMA_MAX_MODELS" -gt 4 ] && OLLAMA_MAX_MODELS=4
+    OLLAMA_KV_CACHE="f16"
+    [ "$RAM_GB" -ge 64 ] && OLLAMA_KV_CACHE="q8_0"
+    [ "$RAM_GB" -ge 32 ] && [ "$RAM_GB" -lt 64 ] && OLLAMA_KV_CACHE="q4_0"
+
+    # ── Display Results ──
+    echo -e "\n  ${CYAN}Hardware Summary:${NC}"
+    echo -e "    CPU:          $CPU_INFO"
+    echo -e "    Cores/Threads: ${CPU_CORES}c / ${CPU_THREADS}t"
+    echo -e "    RAM:          ${RAM_GB} GB"
+    echo -e "    GPU:          $GPU_INFO"
+    [ -n "$NPU_INFO" ] && echo -e "    NPU:          ${GREEN}$NPU_INFO${NC}"
+    echo ""
+    echo -e "  ${CYAN}Acceleration Config:${NC}"
+    echo -e "    Ollama image:  $OLLAMA_IMAGE"
+    echo -e "    GPU mode:      $GPU_VENDOR"
+    echo -e "    CPU threads:   $OLLAMA_NUM_THREADS (of $CPU_THREADS available)"
+    echo -e "    Parallel reqs: $OLLAMA_NUM_PARALLEL"
+    echo -e "    Max models:    $OLLAMA_MAX_MODELS loaded simultaneously"
+    echo -e "    KV cache:      $OLLAMA_KV_CACHE"
+    echo -e "    FlashAttention: enabled"
+    [ -n "$NPU_INFO" ] && echo -e "    NPU:           Detected (not yet supported by Ollama)"
+
     CURRENT_STEP=2; save_state
 }
 

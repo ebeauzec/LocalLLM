@@ -7,6 +7,42 @@ This document provides a comprehensive reference for all enterprise features ava
 
 ---
 
+## Hardware Acceleration
+
+LocalLLM automatically detects and configures all available accelerators at install time.
+
+### GPU Support
+
+| Vendor | Detection | Docker Config | Image |
+|:---|:---|:---|:---|
+| **NVIDIA** (CUDA) | `nvidia-smi` + WMI | `deploy: driver: nvidia` | `ollama/ollama:latest` |
+| **AMD** (ROCm) | `rocm-smi` + WMI + lspci | `devices: /dev/kfd, /dev/dri` | `ollama/ollama:rocm` |
+| **Intel** (Arc) | WMI + lspci | `/dev/dri` passthrough | `ollama/ollama:latest` |
+| **Apple** (Metal) | Native detection | N/A (native macOS) | `ollama/ollama:latest` |
+
+### NPU Detection
+
+| NPU | Detection Method | Status |
+|:---|:---|:---|
+| AMD XDNA | PnP device: "NPU Compute Accelerator Device" | Detected (Ollama support pending) |
+| Intel AI Boost | PnP device: "Intel(R) AI Boost" | Detected (Ollama support pending) |
+| Apple Neural Engine | macOS: Apple M-series CPU | Detected (partial Metal support) |
+
+### CPU Optimization
+
+Automatically configured based on your hardware:
+
+| Setting | Default | Purpose |
+|:---|:---|:---|
+| `OLLAMA_NUM_THREADS` | Physical CPU cores | CPU threads for inference |
+| `OLLAMA_NUM_PARALLEL` | cores/4 (max 4) | Concurrent request handling |
+| `OLLAMA_MAX_LOADED_MODELS` | RAM/16 (max 4) | Models loaded simultaneously |
+| `OLLAMA_FLASH_ATTENTION` | Enabled | Reduced VRAM, faster inference |
+| `OLLAMA_KV_CACHE_TYPE` | q8_0 (≥64GB), q4_0 (≥32GB) | KV cache precision |
+| `OLLAMA_KEEP_ALIVE` | 24h | Model stays loaded in memory |
+
+---
+
 ## AI Assistant Profiles
 
 LocalLLM comes pre-configured with six specialized model profiles designed for specific workflows.

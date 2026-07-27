@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.0] - 2026-07-27
+
+### Added — GPU/NPU Detection & Hardware Acceleration
+- **GPU Auto-Detection**: NVIDIA (CUDA), AMD (ROCm), Intel (Arc), Apple (Metal)
+- **NPU Detection**: AMD XDNA, Intel AI Boost, Apple Neural Engine
+- **AMD ROCm Support**: Auto-selects `ollama/ollama:rocm` image, configures `/dev/kfd` + `/dev/dri` device passthrough, sets `HSA_OVERRIDE_GFX_VERSION` for RDNA3
+- **CPU Optimization**: Auto-configures `OLLAMA_NUM_THREADS` (physical cores), `OLLAMA_NUM_PARALLEL` (cores/4), `OLLAMA_MAX_LOADED_MODELS` (RAM/16GB)
+- **FlashAttention**: Enabled by default for faster inference and lower VRAM usage
+- **KV Cache Tuning**: `q8_0` for ≥64GB RAM, `q4_0` for ≥32GB, `f16` otherwise
+- **Model Keep-Alive**: 24h default to avoid reload latency
+- **Docker Compose Template**: Flexible `{{OLLAMA_IMAGE}}`, `{{ACCELERATOR_BLOCK}}`, `{{OLLAMA_ENV_VARS}}` placeholders replace hardcoded NVIDIA-only config
+- **Bash Installer**: Full GPU/NPU/CPU detection for Linux and macOS (rocm-smi, lspci, system_profiler)
+- **FEATURES.md**: New Hardware Acceleration section with GPU, NPU, and CPU tuning reference tables
+
+### Fixed
+- `install.ps1`: Admin elevation now uses `pwsh` (PS7) instead of `powershell.exe` (PS5.1) — fixes `??` operator parse errors
+- `uninstall.ps1`: Same pwsh elevation fix
+
 ## [v0.5.2] - 2026-07-27
 
 ### Fixed — Complete Deployment Folder Isolation

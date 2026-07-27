@@ -51,8 +51,14 @@ function Get-GPUInfo {
         Gets GPU information.
     #>
     $gpus = @()
+    $hasNvidia = $false
+    $hasAMD = $false
+    $hasIntel = $false
+    $hasNpu = $false
+    $npuName = ""
+
+    # Nvidia
     try {
-        # Try nvidia-smi first
         $nvidiaSmi = Get-Command "nvidia-smi" -ErrorAction SilentlyContinue
         if ($nvidiaSmi) {
             $xml = & nvidia-smi -q -x | Select-Xml -XPath "//gpu"
@@ -67,34 +73,142 @@ function Get-GPUInfo {
                     Vendor = "NVIDIA"
                     VRAM_GB = $vramGB
                     DriverVersion = $node.driver_version
+                    ROCmCapable = $false
+                    Architecture = 'Unknown'
                 }
+                $hasNvidia = $true
             }
         }
     } catch {}
 
-    if ($gpus.Count -eq 0) {
-        try {
-            $videoControllers = Get-CimInstance Win32_VideoController
-            foreach ($vc in $videoControllers) {
-                $vendor = "Unknown"
-                if ($vc.Name -match "NVIDIA") { $vendor = "NVIDIA" }
-                elseif ($vc.Name -match "AMD|Radeon") { $vendor = "AMD" }
-                elseif ($vc.Name -match "Intel") { $vendor = "Intel" }
-                
-                $vramGB = 0
-                if ($vc.AdapterRAM) {
-                    $vramGB = [math]::Round($vc.AdapterRAM / 1GB, 2)
-                }
+    # WMI fallback for AMD/Intel and missing Nvidia
+    try {
+        $videoControllers = Get-CimInstance Win32_VideoController
+        foreach ($vc in $videoControllers) {
+            $vendor = "Unknown"
+            $rocm = $false
+            $arch = "Unknown"
+            if ($vc.Name -match "NVIDIA") { 
+                $vendor = "NVIDIA" 
+                $hasNvidia = $true 
+            }
+            elseif ($vc.Name -match "AMD|Radeon") { 
+                $vendor = "AMD" 
+                $hasAMD = $true
+                $rocm = $true
+                if ($vc.Name -match "8060S|7900|7800|7700|7600") { $arch = "RDNA3" }
+                elseif ($vc.Name -match "6900|6800|6700|6600") { $arch = "RDNA2" }
+            }
+            elseif ($vc.Name -match "Intel") { 
+                $vendor = "Intel" 
+                $hasIntel = $true 
+            }
+            
+            $vramGB = 0
+            if ($vc.AdapterRAM) {
+                $vramGB = [math]::Round($vc.AdapterRAM / 1GB, 2)
+            }
+            
+            $exists = $gpus | Where-Object { $_.Name -eq $vc.Name -and $_.Vendor -eq $vendor }
+            if (-not $exists) {
                 $gpus += @{
                     Name = $vc.Name
                     Vendor = $vendor
                     VRAM_GB = $vramGB
                     DriverVersion = $vc.DriverVersion
+                    ROCmCapable = $rocm
+                    Architecture = $arch
                 }
             }
-        } catch {}
+        }
+    } catch {}
+
+    # NPU Detection
+    try {
+        $npus = Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object { $_.FriendlyName -match "NPU Compute Accelerator Device|Intel\(R\) AI Boost|Intel NPU|Hexagon" -or $_.FriendlyName -eq "AMD XDNA NPU" }
+        if ($npus) {
+            $hasNpu = $true
+            $npuName = $npus[0].FriendlyName
+        }
+    } catch {}
+
+    $primaryGPU = $null
+    $maxVram = -1
+    foreach ($g in $gpus) {
+        if ($g.VRAM_GB -gt $maxVram) {
+            $maxVram = $g.VRAM_GB
+            $primaryGPU = $g
+        }
     }
-    return $gpus
+
+    $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+
+    return @{
+        HasNvidiaGPU = $hasNvidia
+        HasAMDGPU = $hasAMD
+        HasIntelGPU = $hasIntel
+        HasNPU = $hasNpu
+        NPUName = $npuName
+        PrimaryGPU = $primaryGPU
+        AllGPUs = $gpus
+        CPUCores = $cpu.NumberOfCores
+        CPUThreads = $cpu.NumberOfLogicalProcessors
+    }
+}
+
+function Get-AcceleratorConfig {
+    param([hashtable]$GPUInfo, [hashtable]$SystemProfile)
+    
+    $config = @{
+        DockerGPUMode = 'none'     # 'nvidia', 'amd-rocm', 'intel', 'none'
+        OllamaImage = 'ollama/ollama:latest'  # or ollama/ollama:rocm
+        OllamaEnvVars = @{}        # OLLAMA_NUM_PARALLEL, OLLAMA_NUM_THREADS, etc.
+        DockerDevices = @()         # /dev/kfd, /dev/dri, etc.
+        DockerGPUDeploy = $null     # GPU deploy block for docker-compose
+    }
+    
+    # CPU optimization (always apply)
+    $physicalCores = $GPUInfo.CPUCores
+    $config.OllamaEnvVars['OLLAMA_NUM_PARALLEL'] = [math]::Min(4, [math]::Max(1, [math]::Floor($physicalCores / 4)))
+    $config.OllamaEnvVars['OLLAMA_NUM_THREADS'] = $physicalCores
+    $config.OllamaEnvVars['OLLAMA_FLASH_ATTENTION'] = '1'
+    $config.OllamaEnvVars['OLLAMA_KEEP_ALIVE'] = '24h'
+    
+    # With 127GB RAM, can load multiple models
+    $ramGB = $SystemProfile.TotalRAMGB
+    if ($null -eq $ramGB) { $ramGB = $SystemProfile.Memory.TotalGB }
+    $config.OllamaEnvVars['OLLAMA_MAX_LOADED_MODELS'] = [math]::Min(4, [math]::Max(1, [math]::Floor($ramGB / 16)))
+    
+    # KV cache optimization for high-memory systems
+    if ($ramGB -ge 64) {
+        $config.OllamaEnvVars['OLLAMA_KV_CACHE_TYPE'] = 'q8_0'
+    } elseif ($ramGB -ge 32) {
+        $config.OllamaEnvVars['OLLAMA_KV_CACHE_TYPE'] = 'q4_0'
+    }
+    
+    # GPU-specific configuration
+    if ($GPUInfo.HasNvidiaGPU) {
+        $config.DockerGPUMode = 'nvidia'
+        $config.DockerGPUDeploy = @"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"@
+    } elseif ($GPUInfo.HasAMDGPU -and $GPUInfo.PrimaryGPU.ROCmCapable) {
+        $config.DockerGPUMode = 'amd-rocm'
+        $config.OllamaImage = 'ollama/ollama:rocm'
+        $config.DockerDevices = @('/dev/kfd', '/dev/dri')
+        # Set HSA_OVERRIDE_GFX_VERSION for RDNA3 cards
+        if ($GPUInfo.PrimaryGPU.Architecture -eq 'RDNA3') {
+            $config.OllamaEnvVars['HSA_OVERRIDE_GFX_VERSION'] = '11.0.0'
+        }
+    }
+    
+    return $config
 }
 
 function Get-DiskInfo {
@@ -261,26 +375,23 @@ function Get-SystemProfile {
     #>
     $cpu = Get-CPUInfo
     $mem = Get-MemoryInfo
-    $gpus = @(Get-GPUInfo)
+    $gpuInfo = Get-GPUInfo
+    $gpus = $gpuInfo.AllGPUs
     $disk = Get-DiskInfo
     $os = Get-OSInfo
     $tools = Get-ExistingTools
     
     $maxVram = 0
-    $hasNvidia = $false
-    $hasAMD = $false
-    $primaryGPU = $null
-    foreach ($g in $gpus) {
-        if ($g.VRAM_GB -gt $maxVram) {
-            $maxVram = $g.VRAM_GB
-            $primaryGPU = $g
-        }
-        if ($g.Vendor -eq "NVIDIA") { $hasNvidia = $true }
-        if ($g.Vendor -eq "AMD") { $hasAMD = $true }
+    if ($gpuInfo.PrimaryGPU) {
+        $maxVram = $gpuInfo.PrimaryGPU.VRAM_GB
     }
     
     $tier = Get-HardwareTier -RAM_GB $mem.TotalGB -VRAM_GB $maxVram
     $recommendGPU = ($maxVram -gt 4)
+
+    # We need a partial profile for Get-AcceleratorConfig
+    $tempProfile = @{ TotalRAMGB = $mem.TotalGB; Memory = $mem }
+    $accelConfig = Get-AcceleratorConfig -GPUInfo $gpuInfo -SystemProfile $tempProfile
     
     $profile = [PSCustomObject]@{
         CPU = $cpu
@@ -290,10 +401,15 @@ function Get-SystemProfile {
         OS = $os
         ExistingTools = $tools
         HardwareTier = $tier
-        HasNvidiaGPU = $hasNvidia
-        HasAMDGPU = $hasAMD
-        PrimaryGPU = $primaryGPU
+        HasNvidiaGPU = $gpuInfo.HasNvidiaGPU
+        HasAMDGPU = $gpuInfo.HasAMDGPU
+        PrimaryGPU = $gpuInfo.PrimaryGPU
         RecommendGPUInference = $recommendGPU
+        HasNPU = $gpuInfo.HasNPU
+        NPUName = $gpuInfo.NPUName
+        CPUCores = $gpuInfo.CPUCores
+        CPUThreads = $gpuInfo.CPUThreads
+        AcceleratorConfig = $accelConfig
     }
     return $profile
 }
@@ -307,7 +423,7 @@ function Show-SystemReport {
     
     Write-Section -Title "System Report"
     Write-Host "OS: $($Profile.OS.Name) ($($Profile.OS.Architecture))"
-    Write-Host "CPU: $($Profile.CPU.Name) ($($Profile.CPU.Cores) cores)"
+    Write-Host "CPU: $($Profile.CPU.Name) ($($Profile.CPUCores) cores, $($Profile.CPUThreads) threads)"
     Write-Host "RAM: $($Profile.Memory.TotalGB) GB"
     if ($Profile.GPUs.Count -gt 0) {
         foreach ($g in $Profile.GPUs) {
@@ -316,8 +432,17 @@ function Show-SystemReport {
     } else {
         Write-Host "GPU: None detected"
     }
+    if ($Profile.HasNPU) {
+        Write-Host "NPU: $($Profile.NPUName)" -ForegroundColor Cyan
+    } else {
+        Write-Host "NPU: None detected"
+    }
     Write-Host "Disk: $($Profile.Disk.FreeGB) GB free on $($Profile.Disk.Drive)"
     Write-Host "Hardware Tier: $($Profile.HardwareTier)" -ForegroundColor Magenta
+    
+    Write-Host "`nAccelerator Config:" -ForegroundColor Yellow
+    Write-Host " Mode: $($Profile.AcceleratorConfig.DockerGPUMode)"
+    Write-Host " Optimization: $($Profile.AcceleratorConfig.OllamaEnvVars['OLLAMA_NUM_THREADS']) threads, Parallel: $($Profile.AcceleratorConfig.OllamaEnvVars['OLLAMA_NUM_PARALLEL'])"
     
     Write-Host "`nExisting Tools:"
     foreach ($tool in $Profile.ExistingTools.Keys) {
