@@ -250,7 +250,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 1) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 1/$script:TOTAL_STEPS: System Assessment                        │" -ForegroundColor Cyan
+            Write-Host "  │  Step 1/${script:TOTAL_STEPS}: System Assessment                        │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -267,7 +267,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 1/$script:TOTAL_STEPS: System Assessment — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 1/${script:TOTAL_STEPS}: System Assessment — skipped (already done)" -ForegroundColor DarkGray
             if (-not $state.SystemProfile) {
                 $state.SystemProfile = Get-SystemProfile
             }
@@ -278,7 +278,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 2) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 2/$script:TOTAL_STEPS: Model Selection                          │" -ForegroundColor Cyan
+            Write-Host "  │  Step 2/${script:TOTAL_STEPS}: Model Selection                          │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -294,7 +294,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 2/$script:TOTAL_STEPS: Model Selection — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 2/${script:TOTAL_STEPS}: Model Selection — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -302,7 +302,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 3) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 3/$script:TOTAL_STEPS: Configuration                            │" -ForegroundColor Cyan
+            Write-Host "  │  Step 3/${script:TOTAL_STEPS}: Configuration                            │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -320,7 +320,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 3/$script:TOTAL_STEPS: Configuration — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 3/${script:TOTAL_STEPS}: Configuration — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -328,7 +328,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 4) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 4/$script:TOTAL_STEPS: Installing Prerequisites                 │" -ForegroundColor Cyan
+            Write-Host "  │  Step 4/${script:TOTAL_STEPS}: Installing Prerequisites                 │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -353,7 +353,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 4/$script:TOTAL_STEPS: Prerequisites — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 4/${script:TOTAL_STEPS}: Prerequisites — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -361,7 +361,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 5) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 5/$script:TOTAL_STEPS: Deploying Services                       │" -ForegroundColor Cyan
+            Write-Host "  │  Step 5/${script:TOTAL_STEPS}: Deploying Services                       │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -375,7 +375,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 5/$script:TOTAL_STEPS: Service Deployment — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 5/${script:TOTAL_STEPS}: Service Deployment — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -383,7 +383,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 6) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 6/$script:TOTAL_STEPS: Downloading Models                       │" -ForegroundColor Cyan
+            Write-Host "  │  Step 6/${script:TOTAL_STEPS}: Downloading Models                       │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -397,7 +397,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 6/$script:TOTAL_STEPS: Model Download — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 6/${script:TOTAL_STEPS}: Model Download — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -405,7 +405,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 7) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 7/$script:TOTAL_STEPS: Setting Up AI Profiles                    │" -ForegroundColor Cyan
+            Write-Host "  │  Step 7/${script:TOTAL_STEPS}: Setting Up AI Profiles                    │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -428,7 +428,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 7/$script:TOTAL_STEPS: AI Profiles — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 7/${script:TOTAL_STEPS}: AI Profiles — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -436,7 +436,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 8) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 8/$script:TOTAL_STEPS: Configuring Enterprise Features           │" -ForegroundColor Cyan
+            Write-Host "  │  Step 8/${script:TOTAL_STEPS}: Configuring Enterprise Features           │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
@@ -459,7 +459,7 @@ function Start-Installation {
             Write-Host ""
             Start-Sleep -Seconds 1
         } else {
-            Write-Host "  ⏭️  Step 8/$script:TOTAL_STEPS: Enterprise Config — skipped (already done)" -ForegroundColor DarkGray
+            Write-Host "  ⏭️  Step 8/${script:TOTAL_STEPS}: Enterprise Config — skipped (already done)" -ForegroundColor DarkGray
         }
 
         # -------------------------------------------------------------------
@@ -467,7 +467,7 @@ function Start-Installation {
         # -------------------------------------------------------------------
         if ($state.LastStep -lt 9) {
             Write-Host "  ┌─────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-            Write-Host "  │  Step 9/$script:TOTAL_STEPS: Verification                             │" -ForegroundColor Cyan
+            Write-Host "  │  Step 9/${script:TOTAL_STEPS}: Verification                             │" -ForegroundColor Cyan
             Write-Host "  └─────────────────────────────────────────────────────┘" -ForegroundColor Cyan
             Write-Host ""
 
