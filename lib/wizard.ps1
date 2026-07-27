@@ -171,14 +171,59 @@ function Select-Features {
 # ---------------------------------------------------------------------------
 # Cloud API Key Collection
 # ---------------------------------------------------------------------------
+
+function Get-APIKeysPath {
+    <#
+    .SYNOPSIS
+        Returns the path to the persistent API keys file.
+    #>
+    $configDir = Join-Path $PSScriptRoot '..' 'config'
+    if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
+    return Join-Path $configDir 'api-keys.json'
+}
+
+function Save-CloudAPIKeys {
+    <#
+    .SYNOPSIS
+        Persists API keys to local config/api-keys.json.
+    #>
+    param($Keys)
+    $keysPath = Get-APIKeysPath
+    $Keys | ConvertTo-Json -Depth 3 | Set-Content -Path $keysPath -Encoding UTF8
+    Write-LogMessage "API keys saved to config/api-keys.json" -Level Info
+}
+
+function Load-CloudAPIKeys {
+    <#
+    .SYNOPSIS
+        Loads API keys from persistent storage. Returns null if not found.
+    #>
+    $keysPath = Get-APIKeysPath
+    if (Test-Path $keysPath) {
+        try {
+            $keys = Get-Content $keysPath -Raw | ConvertFrom-Json
+            # Convert PSCustomObject back to hashtable
+            $result = @{ OpenAI = ''; Anthropic = ''; Google = '' }
+            if ($keys.OpenAI) { $result.OpenAI = $keys.OpenAI }
+            if ($keys.Anthropic) { $result.Anthropic = $keys.Anthropic }
+            if ($keys.Google) { $result.Google = $keys.Google }
+            return $result
+        } catch {
+            Write-LogMessage "Failed to load saved API keys: $_" -Level Warning
+        }
+    }
+    return $null
+}
+
 function Get-CloudAPIKeys {
     <#
     .SYNOPSIS
         Collects optional cloud API keys for fallback routing.
 
     .DESCRIPTION
-        In STRICT privacy mode, this step is skipped entirely.
-        Keys are validated by format before acceptance.
+        Keys are persisted locally in config/api-keys.json so they
+        survive reboots, install state resets, and re-runs.
+        If keys already exist, offers to reuse them.
     #>
     param(
         [string]$PrivacyMode = 'BALANCED'
@@ -192,6 +237,26 @@ function Get-CloudAPIKeys {
             Write-Host "  🔒 Cloud API keys skipped (STRICT privacy mode)." -ForegroundColor Green
             Write-Host "     All processing will remain local." -ForegroundColor Gray
             return $keys
+        }
+
+        # Check for previously saved keys
+        $savedKeys = Load-CloudAPIKeys
+        if ($savedKeys) {
+            $configured = ($savedKeys.Values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+            if ($configured -gt 0) {
+                Write-Host ""
+                Write-Host "  🔑 Found $configured saved API key(s) from previous setup:" -ForegroundColor Green
+                if (-not [string]::IsNullOrWhiteSpace($savedKeys.OpenAI))    { Write-Host "    • OpenAI     ✅" -ForegroundColor Gray }
+                if (-not [string]::IsNullOrWhiteSpace($savedKeys.Anthropic)) { Write-Host "    • Anthropic  ✅" -ForegroundColor Gray }
+                if (-not [string]::IsNullOrWhiteSpace($savedKeys.Google))    { Write-Host "    • Google     ✅" -ForegroundColor Gray }
+                Write-Host ""
+                $reuse = Read-HostOrConfig -Prompt "  Use saved keys? [Y/n]" -Default 'Y' -ConfigKey 'ReuseSavedKeys'
+                if ($reuse -ne 'n' -and $reuse -ne 'N') {
+                    Write-Host "  ✅ Using saved API keys." -ForegroundColor Green
+                    return $savedKeys
+                }
+                Write-Host "  Entering new keys..." -ForegroundColor Gray
+            }
         }
 
         Write-Host ""
@@ -235,6 +300,9 @@ function Get-CloudAPIKeys {
             Write-Host "     ✅ Google key accepted." -ForegroundColor Green
         }
 
+        # Save keys persistently
+        Save-CloudAPIKeys -Keys $keys
+
         # Summary
         $configured = ($keys.Values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
         Write-Host ""
@@ -245,6 +313,7 @@ function Get-CloudAPIKeys {
             Write-Host "  ℹ️  $configured cloud provider(s) configured as fallback." -ForegroundColor Cyan
             Write-Host "     Local models will always be used first (free, private)." -ForegroundColor Gray
             Write-Host "     Cloud is only used when local cannot handle the request." -ForegroundColor Gray
+            Write-Host "     Keys saved to config/api-keys.json (persistent)." -ForegroundColor DarkGray
         }
 
         return $keys

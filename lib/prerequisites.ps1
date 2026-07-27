@@ -15,23 +15,78 @@ $script:ProjectRoot = $PSScriptRoot | Split-Path -Parent
 function Install-WSL2 {
     <#
     .SYNOPSIS
-    Installs WSL2 if not already enabled.
+    Installs WSL2 if not already enabled. Verifies functionality before
+    requesting a reboot — avoids unnecessary reboots when WSL2/Docker
+    is already working.
     #>
     [CmdletBinding()]
     param()
     
     try {
         Write-LogMessage "Checking WSL2 Status" -Level Step
-        $wslStatus = wsl --status 2>&1
-        if ($LASTEXITCODE -eq 0 -and $wslStatus -match "Default Version: 2") {
-            Write-LogMessage -Message 'Found existing WSL2, skipping installation' -Level Info
+
+        # Check 1: wsl --status
+        $wslWorks = $false
+        try {
+            $wslStatus = wsl --status 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0) { $wslWorks = $true }
+        } catch {}
+
+        # Check 2: wsl -l (lists distros — works even without --status)
+        if (-not $wslWorks) {
+            try {
+                $wslList = wsl -l 2>&1 | Out-String
+                if ($LASTEXITCODE -eq 0) { $wslWorks = $true }
+            } catch {}
+        }
+
+        # Check 3: Windows feature enabled
+        if (-not $wslWorks) {
+            try {
+                $feature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
+                if ($feature -and $feature.State -eq 'Enabled') { $wslWorks = $true }
+            } catch {}
+        }
+
+        # Check 4: Docker is running with WSL2 backend (most reliable indicator)
+        if (-not $wslWorks) {
+            try {
+                $dockerInfo = docker info 2>&1 | Out-String
+                if ($dockerInfo -match 'WSL2' -or $dockerInfo -match 'wsl') { $wslWorks = $true }
+            } catch {}
+        }
+
+        if ($wslWorks) {
+            Write-LogMessage -Message 'WSL2 is already installed and functional' -Level Info
             return @{ Success=$true; RebootRequired=$false }
         }
         
+        # WSL2 not working — install it
         Write-LogMessage "Installing WSL2..." -Level Info
         $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--install --no-distribution" -Wait -NoNewWindow -PassThru
         
-        Write-LogMessage -Message 'WSL2 installation executed. Reboot may be needed.' -Level Warning
+        # Verify if WSL2 works NOW (often works without reboot on modern Windows 11)
+        Start-Sleep -Seconds 3
+        $postInstallWorks = $false
+        try {
+            $check = wsl --status 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0) { $postInstallWorks = $true }
+        } catch {}
+
+        # Also check if Docker is running (Docker+WSL2 = no reboot needed)
+        if (-not $postInstallWorks) {
+            try {
+                $dockerRunning = docker info 2>&1 | Out-String
+                if ($LASTEXITCODE -eq 0) { $postInstallWorks = $true }
+            } catch {}
+        }
+
+        if ($postInstallWorks) {
+            Write-LogMessage -Message 'WSL2 installed and working — no reboot needed' -Level Success
+            return @{ Success=$true; RebootRequired=$false }
+        }
+
+        Write-LogMessage -Message 'WSL2 installed but may need a reboot to activate' -Level Warning
         return @{ Success=$true; RebootRequired=$true }
     } catch {
         Write-LogMessage -Message "Failed to install WSL2: $_" -Level Error
