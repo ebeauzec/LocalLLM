@@ -113,14 +113,22 @@ if (-not $isAdmin) {
     Write-Host "  Restarting with elevated permissions..." -ForegroundColor Yellow
     Write-Host ""
 
-    $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
-    if ($Force) { $arguments += "-Force" }
-    if ($SkipBrowser) { $arguments += "-SkipBrowser" }
-    if ($Unattended) { $arguments += "-Unattended" }
-    if ($ConfigFile) { $arguments += "-ConfigFile `"$ConfigFile`"" }
-    if ($InstallPath) { $arguments += "-InstallPath `"$InstallPath`"" }
+    # Use pwsh (PowerShell 7+), NOT powershell.exe (5.1), because this
+    # script uses PS7 features (null-coalescing ??, ternary, etc.)
+    $pwshPath = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+    if (-not $pwshPath) {
+        $pwshPath = (Get-Command powershell -ErrorAction SilentlyContinue).Source
+    }
 
-    Start-Process powershell -ArgumentList ($arguments -join ' ') -Verb RunAs
+    $scriptPath = $PSCommandPath
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+    if ($Force) { $arguments += " -Force" }
+    if ($SkipBrowser) { $arguments += " -SkipBrowser" }
+    if ($Unattended) { $arguments += " -Unattended" }
+    if ($ConfigFile) { $arguments += " -ConfigFile `"$ConfigFile`"" }
+    if ($InstallPath) { $arguments += " -InstallPath `"$InstallPath`"" }
+
+    Start-Process $pwshPath -ArgumentList $arguments -Verb RunAs -WorkingDirectory $PSScriptRoot
     exit 0
 }
 

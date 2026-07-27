@@ -40,7 +40,9 @@ if (-not $isAdmin) {
     Write-Host ""
     Write-Host "  Uninstaller requires Administrator privileges." -ForegroundColor Yellow
     Write-Host "  Restarting with elevated permissions..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    $pwshPath = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+    if (-not $pwshPath) { $pwshPath = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
+    Start-Process $pwshPath -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs -WorkingDirectory $PSScriptRoot
     exit 0
 }
 
