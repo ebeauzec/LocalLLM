@@ -56,15 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Card Click -> Route through /auth for auto-login
+    // Card Click -> Open WebUI chat (port 8080, root = chat interface)
+    var webuiUrl = window.location.protocol + '//' + window.location.hostname + ':8080/';
     cards.forEach(card => {
         card.addEventListener('click', () => {
-            window.location.href = '/auth';
+            window.location.href = webuiUrl;
         });
     });
 
-    // Helper: navigate to chat via auth
-    function goToChat() { window.location.href = '/auth'; }
+    // Helper: navigate to chat
+    function goToChat() { window.location.href = webuiUrl; }
 
     // New Chat & Upload Doc buttons
     document.getElementById('btnNewChat').addEventListener('click', goToChat);

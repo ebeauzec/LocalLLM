@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LocalLLM - Signing In</title>
+<style>
+body {
+    background: #0a0a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif;
+    color: #94a3b8;
+}
+.box { text-align: center; max-width: 500px; }
+.spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(99,102,241,.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#log {
+    text-align: left;
+    font-size: 12px;
+    font-family: monospace;
+    margin-top: 16px;
+    line-height: 1.8;
+}
+.ok { color: #22c55e; }
+.err { color: #f87171; }
+.warn { color: #f59e0b; }
+</style>
+</head>
+<body>
+<div class="box">
+    <div class="spinner"></div>
+    <div id="log"></div>
+</div>
+<script>
+var logEl = document.getElementById('log');
+function log(msg, cls) {
+    var div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.textContent = msg;
+    logEl.appendChild(div);
+}
+
+(async function() {
+    log('Calling /api/v1/auths/signin...');
+    try {
+        var r = await fetch('/api/v1/auths/signin', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: 'admin@localllm.local',
+                password: 'localllm-admin'
+            })
+        });
+        log('Response: ' + r.status + (r.ok ? ' OK' : ' FAILED'), r.ok ? 'ok' : 'err');
+        if (!r.ok) {
+            log('Auth failed. Status: ' + r.status, 'err');
+            return;
+        }
+        var d = await r.json();
+        log('User: ' + d.name + ' (' + d.email + ')', 'ok');
+        log('Token: ' + d.token.substring(0, 30) + '...');
+
+        // Set token in localStorage (for SvelteKit client-side)
+        localStorage.setItem('token', d.token);
+        log('localStorage.token SET', 'ok');
+
+        // Set token as a regular cookie (non-HttpOnly)
+        document.cookie = 'token=' + d.token + ';path=/;max-age=2419200;samesite=lax';
+        log('document.cookie SET', 'ok');
+
+        // Verify auth works
+        log('Verifying auth with cookie...');
+        var v = await fetch('/api/v1/auths/', { credentials: 'include' });
+        log('Verify: ' + v.status, v.ok ? 'ok' : 'err');
+
+        if (v.ok) {
+            log('SUCCESS — auth is working!', 'ok');
+            log('');
+            var link = document.createElement('a');
+            link.href = '/chat';
+            link.textContent = '→ Click here to go to Chat';
+            link.style.cssText = 'color:#6366f1;font-size:16px;display:block;margin-top:16px;text-align:center;';
+            logEl.appendChild(link);
+        } else {
+            log('Auth verification failed.', 'err');
+            log('The cookie may not be stored properly.', 'warn');
+            log('Try clearing cookies for localhost and retrying.', 'warn');
+        }
+    } catch(e) {
+        log('Error: ' + e.message, 'err');
+    }
+})();
+</script>
+</body>
+</html>
