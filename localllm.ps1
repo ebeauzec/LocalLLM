@@ -37,7 +37,7 @@ param(
     [Parameter(Position = 0, Mandatory = $false)]
     [ValidateSet('start', 'stop', 'restart', 'status', 'update', 'models',
                  'add-model', 'remove-model', 'logs', 'config', 'doctor',
-                 'backup', 'privacy', 'analytics', 'uninstall', 'version', 'bump-version', 'push', 'help', '')]
+                 'backup', 'privacy', 'analytics', 'knowledge', 'uninstall', 'version', 'bump-version', 'push', 'help', '')]
     [string]$Command = 'help',
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -157,6 +157,17 @@ function Show-Help {
     privacy blocklist     Manage custom sensitive data patterns
     analytics             Show cost savings, local vs cloud usage analytics
 
+  Knowledge Repository:
+    knowledge sync          Sync all configured source folders
+    knowledge sync --watch  Start background file watcher
+    knowledge sync --force  Force full resync (re-index everything)
+    knowledge sources       List configured source folders
+    knowledge sources add   Add a read-only source folder
+    knowledge sources remove Remove a source folder
+    knowledge list          List all indexed files
+    knowledge search <q>    Search indexed content
+    knowledge status        Show sync status and statistics
+
   Configuration:
     config                Re-run the configuration wizard
 
@@ -178,9 +189,10 @@ function Show-Help {
   Examples:
     .\localllm.ps1 start
     .\localllm.ps1 add-model llama3.3:8b
-    .\localllm.ps1 logs ollama
+    .\localllm.ps1 knowledge sources add "G:\Customers" --collection customers
+    .\localllm.ps1 knowledge sync
+    .\localllm.ps1 knowledge search "storage capacity"
     .\localllm.ps1 doctor
-    .\localllm.ps1 push "feat: add new models"
 "@
     Write-Host $help
 }
@@ -902,6 +914,89 @@ function Get-PrivacyMode {
 }
 
 # ---------------------------------------------------------------------------
+# Command: knowledge
+# ---------------------------------------------------------------------------
+function Invoke-Knowledge {
+    Show-Header
+    
+    $knowledgeModule = Join-Path $ProjectRoot "lib" "knowledge-sync.ps1"
+    if (-not (Test-Path $knowledgeModule)) {
+        Write-Host "  [ERROR] Knowledge module not found." -ForegroundColor Red
+        return
+    }
+    . $knowledgeModule
+    
+    $subCommand = if ($Options -and $Options.Count -gt 0) { $Options[0] } else { "status" }
+    $subOptions = if ($Options -and $Options.Count -gt 1) { $Options[1..($Options.Count-1)] } else { @() }
+    
+    switch ($subCommand) {
+        'sync' {
+            $force = $subOptions -contains '--force'
+            $watch = $subOptions -contains '--watch'
+            $dryRun = $subOptions -contains '--dry-run'
+            
+            if ($watch) {
+                $watcherModule = Join-Path $ProjectRoot "lib" "knowledge-watcher.ps1"
+                if (Test-Path $watcherModule) {
+                    . $watcherModule
+                    Start-KnowledgeWatcher -ProjectRoot $ProjectRoot
+                } else {
+                    Write-Host "  [ERROR] Watcher module not found." -ForegroundColor Red
+                }
+            } else {
+                Sync-KnowledgeBase -ProjectRoot $ProjectRoot -Force:$force -DryRun:$dryRun
+            }
+        }
+        'sources' {
+            $action = if ($subOptions.Count -gt 0) { $subOptions[0] } else { "list" }
+            switch ($action) {
+                'add' {
+                    if ($subOptions.Count -lt 2) {
+                        Write-Host "  Usage: .\localllm.ps1 knowledge sources add <path> [--collection <name>]" -ForegroundColor Yellow
+                        return
+                    }
+                    $path = $subOptions[1]
+                    $collection = "default"
+                    $collIdx = [Array]::IndexOf($subOptions, '--collection')
+                    if ($collIdx -ge 0 -and $collIdx + 1 -lt $subOptions.Count) {
+                        $collection = $subOptions[$collIdx + 1]
+                    }
+                    Add-KnowledgeSource -ProjectRoot $ProjectRoot -Path $path -Collection $collection
+                }
+                'remove' {
+                    if ($subOptions.Count -lt 2) {
+                        Write-Host "  Usage: .\localllm.ps1 knowledge sources remove <path>" -ForegroundColor Yellow
+                        return
+                    }
+                    Remove-KnowledgeSource -ProjectRoot $ProjectRoot -Path $subOptions[1]
+                }
+                default {
+                    Get-KnowledgeSources -ProjectRoot $ProjectRoot
+                }
+            }
+        }
+        'list' {
+            Get-KnowledgeStatus -ProjectRoot $ProjectRoot
+        }
+        'search' {
+            $query = $subOptions -join ' '
+            if ([string]::IsNullOrWhiteSpace($query)) {
+                Write-Host "  Usage: .\localllm.ps1 knowledge search <query>" -ForegroundColor Yellow
+                return
+            }
+            Search-Knowledge -ProjectRoot $ProjectRoot -Query $query
+        }
+        'status' {
+            Get-KnowledgeStatus -ProjectRoot $ProjectRoot
+        }
+        default {
+            Write-Host "  Unknown knowledge subcommand: $subCommand" -ForegroundColor Yellow
+            Write-Host "  Available: sync, sources, list, search, status" -ForegroundColor Gray
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Command Dispatcher
 # ---------------------------------------------------------------------------
 try {
@@ -927,6 +1022,7 @@ try {
         }
         'push'         { Invoke-Push }
         'analytics'    { Invoke-Analytics }
+        'knowledge'    { Invoke-Knowledge }
         'help'         { Show-Help }
         default        { Show-Help }
     }

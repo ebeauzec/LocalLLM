@@ -1,0 +1,32 @@
+{
+  "_copyright": "Copyright (c) 2025-2026 Eugene Beauzec. All Rights Reserved.",
+  "sources": [
+    {
+      "path": "knowledge/",
+      "collection": "default",
+      "recursive": true,
+      "enabled": true,
+      "description": "Built-in knowledge directory"
+    }
+  ],
+  "fileTypes": [
+    ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".csv",
+    ".txt", ".md", ".rtf", ".html", ".htm", ".xml", ".json", ".yaml", ".yml",
+    ".eml", ".msg",
+    ".png", ".jpg", ".jpeg", ".tiff", ".bmp"
+  ],
+  "excludePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/~$*",
+    "**/*.tmp",
+    "**/.DS_Store",
+    "**/Thumbs.db"
+  ],
+  "syncSettings": {
+    "chunkSize": 1500,
+    "chunkOverlap": 200,
+    "debounceSeconds": 5,
+    "autoWatch": true
+  }
+}
